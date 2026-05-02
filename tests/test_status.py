@@ -16,9 +16,7 @@ async def test_status_unknown_when_not_initialized(
     assert await git_manager.get_status() is SyncStatus.UNKNOWN
 
 
-async def test_status_unknown_for_empty_repo(
-    git_manager: GitManager, config_dir: Path
-) -> None:
+async def test_status_unknown_for_empty_repo(git_manager: GitManager, config_dir: Path) -> None:
     """git init was done but nothing was ever committed locally or pushed."""
     await git_manager.initialize()
     assert await git_manager.get_status() is SyncStatus.UNKNOWN
@@ -35,9 +33,7 @@ async def test_status_modified_when_tracked_file_changes(
     git_manager_seeded: GitManager, config_dir: Path
 ) -> None:
     await git_manager_seeded.initialize()
-    (config_dir / "automations.yaml").write_text(
-        "- new line\n", encoding="utf-8"
-    )
+    (config_dir / "automations.yaml").write_text("- new line\n", encoding="utf-8")
     assert await git_manager_seeded.get_status() is SyncStatus.MODIFIED
 
 
@@ -54,9 +50,7 @@ async def test_status_ahead_after_local_commit(
     git_manager_seeded: GitManager, config_dir: Path
 ) -> None:
     await git_manager_seeded.initialize()
-    make_local_commit(
-        config_dir, filename="scripts.yaml", content="local: true"
-    )
+    make_local_commit(config_dir, filename="scripts.yaml", content="local: true")
     assert await git_manager_seeded.get_status() is SyncStatus.AHEAD
 
 
@@ -79,19 +73,13 @@ async def test_status_diverged_when_both_sides_advance(
     tmp_path: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    make_local_commit(
-        config_dir, filename="local_only.yaml", content="local: true"
-    )
-    push_remote_commit(
-        seeded_remote, tmp_path / "third_party", filename="remote_only.yaml"
-    )
+    make_local_commit(config_dir, filename="local_only.yaml", content="local: true")
+    push_remote_commit(seeded_remote, tmp_path / "third_party", filename="remote_only.yaml")
 
     assert await git_manager_seeded.get_status() is SyncStatus.DIVERGED
 
 
-async def test_status_unknown_when_remote_unreachable(
-    config_dir: Path, tmp_path: Path
-) -> None:
+async def test_status_unknown_when_remote_unreachable(config_dir: Path, tmp_path: Path) -> None:
     """No HEAD locally + unreachable remote → UNKNOWN, not ERROR."""
     manager = GitManager(
         config_dir=config_dir,

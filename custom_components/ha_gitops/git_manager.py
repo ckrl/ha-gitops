@@ -120,9 +120,7 @@ class GitManager:
         integration stays usable for inspection even when the remote is down.
         """
         await asyncio.to_thread(self._config_dir.mkdir, parents=True, exist_ok=True)
-        await asyncio.to_thread(
-            self._ssh_key_path.parent.mkdir, parents=True, exist_ok=True
-        )
+        await asyncio.to_thread(self._ssh_key_path.parent.mkdir, parents=True, exist_ok=True)
 
         if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
             await self._run_git("init", "-b", self._branch)
@@ -137,9 +135,7 @@ class GitManager:
             fetch_ok = False
 
         if fetch_ok:
-            rc, _, _ = await self._run_git(
-                "rev-parse", "--verify", "HEAD", check=False
-            )
+            rc, _, _ = await self._run_git("rev-parse", "--verify", "HEAD", check=False)
             if rc != 0:
                 rc_remote, _, _ = await self._run_git(
                     "rev-parse",
@@ -187,13 +183,9 @@ class GitManager:
                 await self._run_git("push", "--set-upstream", "origin", self._branch)
             except GitError as exc:
                 raise self._classify_push_error(exc) from exc
-            return GitResult(
-                ok=True, message="Initial push", changed_files=committed_changes
-            )
+            return GitResult(ok=True, message="Initial push", changed_files=committed_changes)
 
-        _, ahead_str, _ = await self._run_git(
-            "rev-list", "--count", f"origin/{self._branch}..HEAD"
-        )
+        _, ahead_str, _ = await self._run_git("rev-list", "--count", f"origin/{self._branch}..HEAD")
         if int(ahead_str.strip() or "0") == 0:
             return GitResult(ok=True, message="Nothing to push")
 
@@ -212,13 +204,9 @@ class GitManager:
             "rev-parse", "--verify", f"origin/{self._branch}", check=False
         )
         if rc != 0:
-            raise GitError(
-                f"Remote branch origin/{self._branch} not found"
-            )
+            raise GitError(f"Remote branch origin/{self._branch} not found")
 
-        rc_head, old_head_out, _ = await self._run_git(
-            "rev-parse", "HEAD", check=False
-        )
+        rc_head, old_head_out, _ = await self._run_git("rev-parse", "HEAD", check=False)
         old_head = old_head_out.strip() if rc_head == 0 else ""
 
         rc, stdout, stderr = await self._run_git(
@@ -235,9 +223,7 @@ class GitManager:
 
         changed: tuple[str, ...] = ()
         if old_head and old_head != new_head:
-            _, diff_out, _ = await self._run_git(
-                "diff", "--name-only", old_head, new_head
-            )
+            _, diff_out, _ = await self._run_git("diff", "--name-only", old_head, new_head)
             changed = tuple(line for line in diff_out.splitlines() if line)
 
         return GitResult(
@@ -284,9 +270,7 @@ class GitManager:
         except GitError as exc:
             _LOGGER.warning("ha_gitops: status fetch failed: %s", exc)
 
-        rc, _, _ = await self._run_git(
-            "rev-parse", "--verify", "HEAD", check=False
-        )
+        rc, _, _ = await self._run_git("rev-parse", "--verify", "HEAD", check=False)
         if rc != 0:
             return SyncStatus.UNKNOWN
 
@@ -333,9 +317,7 @@ class GitManager:
         if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
             return []
 
-        rc, out, _ = await self._run_git(
-            "status", "--porcelain=v1", check=False
-        )
+        rc, out, _ = await self._run_git("status", "--porcelain=v1", check=False)
         if rc != 0:
             return []
 
@@ -361,9 +343,7 @@ class GitManager:
     async def test_connection(self) -> bool:
         raise NotImplementedError
 
-    async def _run_git(
-        self, *args: str, check: bool = True
-    ) -> tuple[int, str, str]:
+    async def _run_git(self, *args: str, check: bool = True) -> tuple[int, str, str]:
         """Run `git <args>` with the integration's SSH env.
 
         Returns (returncode, stdout, stderr). When `check=True` (default) and
@@ -383,22 +363,16 @@ class GitManager:
         rc = proc.returncode or 0
         stdout = stdout_b.decode("utf-8", errors="replace")
         stderr = stderr_b.decode("utf-8", errors="replace")
-        _LOGGER.debug(
-            "git %s -> rc=%s", " ".join(shlex.quote(a) for a in args), rc
-        )
+        _LOGGER.debug("git %s -> rc=%s", " ".join(shlex.quote(a) for a in args), rc)
         if check and rc != 0:
             subcmd = next((a for a in args if not a.startswith("-")), "")
-            raise GitError(
-                f"git {subcmd} failed (exit {rc}): {stderr.strip() or stdout.strip()}"
-            )
+            raise GitError(f"git {subcmd} failed (exit {rc}): {stderr.strip() or stdout.strip()}")
         return rc, stdout, stderr
 
     async def _require_initialized(self) -> None:
         """Raise GitError if `.git/` is missing in the configured working tree."""
         if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
-            raise GitError(
-                "Repository not initialized. Call initialize() first."
-            )
+            raise GitError("Repository not initialized. Call initialize() first.")
 
     async def _stage_yaml_files(self) -> list[FileChange]:
         """Stage root-level YAML files (excluding secrets) and return staged FileChanges.
@@ -412,9 +386,7 @@ class GitManager:
         if yaml_files:
             await self._run_git("add", "--", *yaml_files)
 
-        rc, ls_out, _ = await self._run_git(
-            "ls-files", "--", "*.yaml", check=False
-        )
+        rc, ls_out, _ = await self._run_git("ls-files", "--", "*.yaml", check=False)
         if rc == 0:
             tracked = [
                 f
@@ -425,37 +397,26 @@ class GitManager:
                 and not f.endswith(".secrets.yaml")
             ]
             if tracked:
-                await self._run_git(
-                    "add", "--update", "--", *tracked, check=False
-                )
+                await self._run_git("add", "--update", "--", *tracked, check=False)
 
-        rc, staged_out, _ = await self._run_git(
-            "diff", "--cached", "--name-only", check=False
-        )
+        rc, staged_out, _ = await self._run_git("diff", "--cached", "--name-only", check=False)
         if rc != 0:
             raise GitError("failed to inspect staged files")
 
         staged = [s for s in staged_out.splitlines() if s.strip()]
-        leaked = [
-            f
-            for f in staged
-            if f in SECRETS_FILENAMES or f.endswith(".secrets.yaml")
-        ]
+        leaked = [f for f in staged if f in SECRETS_FILENAMES or f.endswith(".secrets.yaml")]
         if leaked:
             for f in leaked:
                 await self._run_git("reset", "HEAD", "--", f, check=False)
             raise GitError(
-                "Refused to push: secrets file(s) detected in staged area: "
-                f"{', '.join(leaked)}"
+                "Refused to push: secrets file(s) detected in staged area: " f"{', '.join(leaked)}"
             )
 
         return await self._get_staged_changes()
 
     async def _get_staged_changes(self) -> list[FileChange]:
         """Return staged changes as FileChange list, parsed from diff --name-status."""
-        rc, out, _ = await self._run_git(
-            "diff", "--cached", "--name-status", check=False
-        )
+        rc, out, _ = await self._run_git("diff", "--cached", "--name-status", check=False)
         if rc != 0:
             return []
         result: list[FileChange] = []
@@ -474,16 +435,12 @@ class GitManager:
         """Translate raw git push errors into a more actionable message."""
         msg = str(exc).lower()
         if "rejected" in msg or "non-fast-forward" in msg or "fetch first" in msg:
-            return GitError(
-                "Push rejected: remote has new changes. Pull first."
-            )
+            return GitError("Push rejected: remote has new changes. Pull first.")
         return exc
 
     async def _ensure_remote(self) -> None:
         """Make sure `origin` points at the configured repo URL."""
-        rc, stdout, _ = await self._run_git(
-            "remote", "get-url", "origin", check=False
-        )
+        rc, stdout, _ = await self._run_git("remote", "get-url", "origin", check=False)
         if rc != 0:
             await self._run_git("remote", "add", "origin", self._repo_url)
             return
@@ -502,9 +459,7 @@ class GitManager:
             if GITIGNORE_MARKER in existing:
                 return
             separator = "" if existing.endswith("\n") else "\n"
-            target.write_text(
-                existing + separator + "\n" + GITIGNORE_TEMPLATE, encoding="utf-8"
-            )
+            target.write_text(existing + separator + "\n" + GITIGNORE_TEMPLATE, encoding="utf-8")
 
         await asyncio.to_thread(_apply)
 
@@ -546,9 +501,7 @@ class GitManager:
         elif len(names) <= 3:
             subject = f"Update: {', '.join(names)}"
         else:
-            subject = (
-                f"Update: {names[0]}, {names[1]} (+{len(names) - 2} more)"
-            )
+            subject = f"Update: {names[0]}, {names[1]} (+{len(names) - 2} more)"
 
         file_lines = "\n".join(f"  {f.status}  {f.name}" for f in changed_files)
         timestamp = datetime.now().astimezone().isoformat(timespec="seconds")

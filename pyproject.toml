@@ -40,11 +40,13 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "ASYNC", "PTH", "RUF"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["N802", "N803"]
+# Tests intentionally use sync subprocess.run for readability — the test loop
+# is short-lived and doesn't share an event loop with production code.
+"tests/**" = ["N802", "N803", "ASYNC221"]
 
 [tool.black]
 line-length = 100
-target-version = ["py311", "py312"]
+target-version = ["py311"]
 extend-exclude = "docs"
 
 [tool.mypy]

@@ -81,7 +81,7 @@ alwaysApply: false
 
 Перед подачей:
 
-- [ ] Зелёный CI (hassfest + HACS action) на main.
+- [ ] Зелёный CI (hassfest + HACS action) на default-ветке.
 - [ ] Минимум один tagged release (`v0.x.0`).
 - [ ] README с install/usage.
 - [ ] Issue tracker открыт.

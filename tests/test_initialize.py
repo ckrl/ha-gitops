@@ -25,9 +25,7 @@ async def test_run_git_failure_raises_giterror(git_manager: GitManager) -> None:
 async def test_run_git_failure_returns_when_check_false(
     git_manager: GitManager,
 ) -> None:
-    rc, _, stderr = await git_manager._run_git(
-        "rev-parse", "HEAD", check=False
-    )
+    rc, _, stderr = await git_manager._run_git("rev-parse", "HEAD", check=False)
     assert rc != 0
     assert stderr  # should carry git's diagnostic
 
@@ -52,9 +50,7 @@ async def test_initialize_creates_ha_gitops_directory(
     assert (config_dir / ".ha_gitops").is_dir()
 
 
-async def test_initialize_is_idempotent(
-    git_manager: GitManager, config_dir: Path
-) -> None:
+async def test_initialize_is_idempotent(git_manager: GitManager, config_dir: Path) -> None:
     await git_manager.initialize()
     first = (config_dir / ".gitignore").read_text(encoding="utf-8")
     await git_manager.initialize()

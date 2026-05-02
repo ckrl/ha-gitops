@@ -14,7 +14,6 @@ from custom_components.ha_gitops.const import (
 )
 from custom_components.ha_gitops.git_manager import GitManager
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_PATH = REPO_ROOT / "custom_components" / "ha_gitops" / "manifest.json"
 

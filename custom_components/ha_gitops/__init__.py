@@ -7,7 +7,8 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv, discovery
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import discovery
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -79,8 +80,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data[DOMAIN][DATA_SCAN_INTERVAL] = conf[CONF_SCAN_INTERVAL]
 
     for platform in PLATFORMS:
-        hass.async_create_task(
-            discovery.async_load_platform(hass, platform, DOMAIN, {}, config)
-        )
+        hass.async_create_task(discovery.async_load_platform(hass, platform, DOMAIN, {}, config))
 
     return True

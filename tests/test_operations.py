@@ -17,16 +17,13 @@ from custom_components.ha_gitops.git_manager import (
 
 from .conftest import _git, make_local_commit, push_remote_commit
 
-
 # ---------------------------------------------------------------------------
 # _build_commit_message — spec §8.3
 # ---------------------------------------------------------------------------
 
 
 def test_commit_message_one_file(git_manager: GitManager) -> None:
-    msg = git_manager._build_commit_message(
-        [FileChange("M", "automations.yaml")]
-    )
+    msg = git_manager._build_commit_message([FileChange("M", "automations.yaml")])
     assert msg.startswith("Update: automations.yaml\n\n")
     assert "Changed files (1):" in msg
     assert "  M  automations.yaml" in msg
@@ -47,9 +44,7 @@ def test_commit_message_three_files(git_manager: GitManager) -> None:
 
 
 def test_commit_message_four_or_more_files(git_manager: GitManager) -> None:
-    msg = git_manager._build_commit_message(
-        [FileChange("M", f"f{i}.yaml") for i in range(5)]
-    )
+    msg = git_manager._build_commit_message([FileChange("M", f"f{i}.yaml") for i in range(5)])
     assert msg.startswith("Update: f0.yaml, f1.yaml (+3 more)\n")
     assert "Changed files (5):" in msg
 
@@ -84,9 +79,7 @@ async def test_push_commits_new_yaml_and_uploads_to_remote(
     tmp_path: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    (config_dir / "scripts.yaml").write_text(
-        "turn_on: noop\n", encoding="utf-8"
-    )
+    (config_dir / "scripts.yaml").write_text("turn_on: noop\n", encoding="utf-8")
 
     result = await git_manager_seeded.push()
     assert result.ok
@@ -141,9 +134,7 @@ async def test_push_only_pushes_when_unpushed_local_commits_exist(
     tmp_path: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    make_local_commit(
-        config_dir, filename="local_only.yaml", content="x: 1"
-    )
+    make_local_commit(config_dir, filename="local_only.yaml", content="x: 1")
 
     result = await git_manager_seeded.push()
     assert result.ok
@@ -162,9 +153,7 @@ async def test_push_aborts_on_staged_secrets(
     """Panic guard: if secrets.yaml ends up staged, push aborts and unstages it."""
     await git_manager_seeded.initialize()
     (config_dir / "scripts.yaml").write_text("legit: true\n", encoding="utf-8")
-    (config_dir / "secrets.yaml").write_text(
-        "api_key: leak\n", encoding="utf-8"
-    )
+    (config_dir / "secrets.yaml").write_text("api_key: leak\n", encoding="utf-8")
     subprocess.run(
         ["git", "-C", str(config_dir), "add", "-f", "secrets.yaml"],
         check=True,
@@ -191,9 +180,7 @@ async def test_push_rejected_when_remote_ahead(
 ) -> None:
     await git_manager_seeded.initialize()
     push_remote_commit(seeded_remote, tmp_path / "third_party")
-    make_local_commit(
-        config_dir, filename="local_only.yaml", content="local: true"
-    )
+    make_local_commit(config_dir, filename="local_only.yaml", content="local: true")
 
     with pytest.raises(GitError, match="Pull first"):
         await git_manager_seeded.push()
@@ -230,9 +217,7 @@ async def test_pull_fast_forwards_when_remote_advanced(
     tmp_path: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    push_remote_commit(
-        seeded_remote, tmp_path / "third_party", filename="new_remote.yaml"
-    )
+    push_remote_commit(seeded_remote, tmp_path / "third_party", filename="new_remote.yaml")
 
     result = await git_manager_seeded.pull()
     assert result.ok
@@ -256,12 +241,8 @@ async def test_pull_raises_on_divergence(
     tmp_path: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    make_local_commit(
-        config_dir, filename="local.yaml", content="local: true"
-    )
-    push_remote_commit(
-        seeded_remote, tmp_path / "third_party", filename="remote.yaml"
-    )
+    make_local_commit(config_dir, filename="local.yaml", content="local: true")
+    push_remote_commit(seeded_remote, tmp_path / "third_party", filename="remote.yaml")
 
     with pytest.raises(GitConflictError):
         await git_manager_seeded.pull()
@@ -354,9 +335,7 @@ async def test_commit_aborts_on_secrets(
     config_dir: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    (config_dir / "secrets.yaml").write_text(
-        "api_key: leak\n", encoding="utf-8"
-    )
+    (config_dir / "secrets.yaml").write_text("api_key: leak\n", encoding="utf-8")
     subprocess.run(
         ["git", "-C", str(config_dir), "add", "-f", "secrets.yaml"],
         check=True,
@@ -377,9 +356,7 @@ async def test_get_changed_files_reports_modified_yaml(
     config_dir: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    (config_dir / "automations.yaml").write_text(
-        "- new line\n", encoding="utf-8"
-    )
+    (config_dir / "automations.yaml").write_text("- new line\n", encoding="utf-8")
 
     changes = await git_manager_seeded.get_changed_files()
     names = [c.name for c in changes]
@@ -391,9 +368,7 @@ async def test_get_changed_files_excludes_secrets(
     config_dir: Path,
 ) -> None:
     await git_manager_seeded.initialize()
-    (config_dir / "secrets.yaml").write_text(
-        "api_key: leak\n", encoding="utf-8"
-    )
+    (config_dir / "secrets.yaml").write_text("api_key: leak\n", encoding="utf-8")
     subprocess.run(
         ["git", "-C", str(config_dir), "add", "-f", "secrets.yaml"],
         check=True,
