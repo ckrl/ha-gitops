@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from custom_components.ha_gitops.const import GITIGNORE_TEMPLATE
 from custom_components.ha_gitops.git_manager import GitManager
 
 
@@ -20,6 +21,49 @@ def _git(cwd: Path, *args: str) -> str:
         text=True,
     )
     return proc.stdout
+
+
+def make_local_commit(
+    cwd: Path,
+    *,
+    filename: str = "automations.yaml",
+    content: str = "- alias: test",
+    message: str = "Local commit",
+) -> str:
+    """Create/update a file in `cwd` and commit it. Returns commit SHA."""
+    (cwd / filename).write_text(content + "\n", encoding="utf-8")
+    _git(cwd, "add", filename)
+    _git(
+        cwd,
+        "-c",
+        "user.email=local@test",
+        "-c",
+        "user.name=Local",
+        "commit",
+        "-m",
+        message,
+    )
+    return _git(cwd, "rev-parse", "HEAD").strip()
+
+
+def push_remote_commit(
+    remote_url: str,
+    workdir: Path,
+    *,
+    filename: str = "scripts.yaml",
+    content: str = "remote_change: true",
+    branch: str = "main",
+) -> str:
+    """Clone the remote in `workdir`, add a new commit, push it back. Returns SHA."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    _git(workdir, "clone", remote_url, ".")
+    _git(workdir, "config", "user.email", "remote@test")
+    _git(workdir, "config", "user.name", "Remote")
+    (workdir / filename).write_text(content + "\n", encoding="utf-8")
+    _git(workdir, "add", filename)
+    _git(workdir, "commit", "-m", f"Remote update: {filename}")
+    _git(workdir, "push", "origin", branch)
+    return _git(workdir, "rev-parse", "HEAD").strip()
 
 
 @pytest.fixture
@@ -55,8 +99,9 @@ def seeded_remote(tmp_path: Path) -> str:
     _git(seed, "init", "-b", "main")
     _git(seed, "config", "user.email", "seed@example.com")
     _git(seed, "config", "user.name", "Seeder")
+    (seed / ".gitignore").write_text(GITIGNORE_TEMPLATE, encoding="utf-8")
     (seed / "automations.yaml").write_text("[]\n", encoding="utf-8")
-    _git(seed, "add", "automations.yaml")
+    _git(seed, "add", ".gitignore", "automations.yaml")
     _git(seed, "commit", "-m", "Initial config")
     _git(seed, "remote", "add", "origin", f"file://{bare}")
     _git(seed, "push", "origin", "main")

@@ -114,26 +114,34 @@ class GitManager:
             await self._run_git("init", "-b", self._branch)
 
         await self._ensure_remote()
-        await self._ensure_gitignore()
 
+        fetch_ok = True
         try:
             await self._run_git("fetch", "origin", "--quiet")
         except GitError as exc:
             _LOGGER.warning("ha_gitops: initial fetch skipped: %s", exc)
-            return
+            fetch_ok = False
 
-        rc, _, _ = await self._run_git("rev-parse", "--verify", "HEAD", check=False)
-        if rc != 0:
-            rc_remote, _, _ = await self._run_git(
-                "rev-parse",
-                "--verify",
-                f"origin/{self._branch}",
-                check=False,
+        if fetch_ok:
+            rc, _, _ = await self._run_git(
+                "rev-parse", "--verify", "HEAD", check=False
             )
-            if rc_remote == 0:
-                await self._run_git(
-                    "checkout", "-b", self._branch, f"origin/{self._branch}"
+            if rc != 0:
+                rc_remote, _, _ = await self._run_git(
+                    "rev-parse",
+                    "--verify",
+                    f"origin/{self._branch}",
+                    check=False,
                 )
+                if rc_remote == 0:
+                    await self._run_git(
+                        "checkout",
+                        "-b",
+                        self._branch,
+                        f"origin/{self._branch}",
+                    )
+
+        await self._ensure_gitignore()
 
     async def push(self) -> GitResult:
         raise NotImplementedError
@@ -148,7 +156,59 @@ class GitManager:
         raise NotImplementedError
 
     async def get_status(self) -> SyncStatus:
-        return SyncStatus.UNKNOWN
+        """Return current sync status per spec §8.1.
+
+        Performs a soft `git fetch origin` first (network errors are downgraded
+        to a WARNING), then reasons about local vs remote tips using
+        `rev-parse` and `merge-base`. Returns UNKNOWN if the repository is
+        not initialized or has no commits yet, or if the remote branch is
+        unreachable and we have nothing to compare against.
+        """
+        if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
+            return SyncStatus.UNKNOWN
+
+        try:
+            await self._run_git("fetch", "origin", "--quiet")
+        except GitError as exc:
+            _LOGGER.warning("ha_gitops: status fetch failed: %s", exc)
+
+        rc, _, _ = await self._run_git(
+            "rev-parse", "--verify", "HEAD", check=False
+        )
+        if rc != 0:
+            return SyncStatus.UNKNOWN
+
+        _, porcelain, _ = await self._run_git("status", "--porcelain")
+        if porcelain.strip():
+            return SyncStatus.MODIFIED
+
+        rc, local_out, _ = await self._run_git("rev-parse", "HEAD", check=False)
+        if rc != 0:
+            return SyncStatus.UNKNOWN
+
+        rc, remote_out, _ = await self._run_git(
+            "rev-parse", "--verify", f"origin/{self._branch}", check=False
+        )
+        if rc != 0:
+            return SyncStatus.UNKNOWN
+
+        local_h = local_out.strip()
+        remote_h = remote_out.strip()
+        if local_h == remote_h:
+            return SyncStatus.CLEAN
+
+        rc, base_out, _ = await self._run_git(
+            "merge-base", "HEAD", f"origin/{self._branch}", check=False
+        )
+        if rc != 0:
+            return SyncStatus.DIVERGED
+
+        base_h = base_out.strip()
+        if base_h == remote_h:
+            return SyncStatus.AHEAD
+        if base_h == local_h:
+            return SyncStatus.BEHIND
+        return SyncStatus.DIVERGED
 
     async def get_local_commit(self) -> CommitInfo | None:
         return None
