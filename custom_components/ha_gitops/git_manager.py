@@ -8,10 +8,13 @@ never blocked.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import shlex
 from dataclasses import dataclass
+from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 from .const import (
@@ -23,6 +26,17 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _read_integration_version() -> str:
+    """Return the integration version from manifest.json (cached)."""
+    manifest = Path(__file__).resolve().parent / "manifest.json"
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        return str(data.get("version", "0.0.0"))
+    except (OSError, ValueError):
+        return "0.0.0"
 
 
 class GitError(Exception):
@@ -144,16 +158,114 @@ class GitManager:
         await self._ensure_gitignore()
 
     async def push(self) -> GitResult:
-        raise NotImplementedError
+        """Stage YAML files (secrets-guarded), commit if there are changes, push.
+
+        Per spec §7.1, this is a single atomic action from the user's
+        perspective: it commits any pending YAML edits and pushes; if there
+        is nothing to commit but a previous local commit failed to reach the
+        remote, it pushes that commit; if there is genuinely nothing to do,
+        it returns a clean no-op.
+        """
+        await self._require_initialized()
+
+        files = await self._stage_yaml_files()
+        committed_changes: tuple[str, ...] = ()
+        if files:
+            message = self._build_commit_message(files)
+            await self._run_git(*self._author_args(), "commit", "-m", message)
+            committed_changes = tuple(f.name for f in files)
+
+        rc, _, _ = await self._run_git("rev-parse", "--verify", "HEAD", check=False)
+        if rc != 0:
+            return GitResult(ok=True, message="Nothing to push")
+
+        rc_remote, _, _ = await self._run_git(
+            "rev-parse", "--verify", f"origin/{self._branch}", check=False
+        )
+        if rc_remote != 0:
+            try:
+                await self._run_git("push", "--set-upstream", "origin", self._branch)
+            except GitError as exc:
+                raise self._classify_push_error(exc) from exc
+            return GitResult(
+                ok=True, message="Initial push", changed_files=committed_changes
+            )
+
+        _, ahead_str, _ = await self._run_git(
+            "rev-list", "--count", f"origin/{self._branch}..HEAD"
+        )
+        if int(ahead_str.strip() or "0") == 0:
+            return GitResult(ok=True, message="Nothing to push")
+
+        try:
+            await self._run_git("push", "origin", self._branch)
+        except GitError as exc:
+            raise self._classify_push_error(exc) from exc
+        return GitResult(ok=True, message="Pushed", changed_files=committed_changes)
 
     async def pull(self) -> GitResult:
-        raise NotImplementedError
+        """Fetch and fast-forward only — never auto-merge or rebase."""
+        await self._require_initialized()
+        await self._run_git("fetch", "origin", "--quiet")
+
+        rc, _, _ = await self._run_git(
+            "rev-parse", "--verify", f"origin/{self._branch}", check=False
+        )
+        if rc != 0:
+            raise GitError(
+                f"Remote branch origin/{self._branch} not found"
+            )
+
+        rc_head, old_head_out, _ = await self._run_git(
+            "rev-parse", "HEAD", check=False
+        )
+        old_head = old_head_out.strip() if rc_head == 0 else ""
+
+        rc, stdout, stderr = await self._run_git(
+            "merge", "--ff-only", f"origin/{self._branch}", check=False
+        )
+        if rc != 0:
+            raise GitConflictError(
+                f"Fast-forward merge refused (diverged history?): "
+                f"{stderr.strip() or stdout.strip()}"
+            )
+
+        _, new_head_out, _ = await self._run_git("rev-parse", "HEAD")
+        new_head = new_head_out.strip()
+
+        changed: tuple[str, ...] = ()
+        if old_head and old_head != new_head:
+            _, diff_out, _ = await self._run_git(
+                "diff", "--name-only", old_head, new_head
+            )
+            changed = tuple(line for line in diff_out.splitlines() if line)
+
+        return GitResult(
+            ok=True,
+            message=stdout.strip() or "Pulled",
+            changed_files=changed,
+        )
 
     async def fetch(self) -> GitResult:
-        raise NotImplementedError
+        """Run `git fetch origin` and report success/failure as GitResult."""
+        await self._require_initialized()
+        await self._run_git("fetch", "origin", "--quiet")
+        return GitResult(ok=True, message="Fetched")
 
     async def commit(self, message: str | None = None) -> GitResult:
-        raise NotImplementedError
+        """Stage YAML files and create a commit without pushing."""
+        await self._require_initialized()
+        files = await self._stage_yaml_files()
+        if not files:
+            return GitResult(ok=True, message="Nothing to commit")
+
+        msg = message or self._build_commit_message(files)
+        await self._run_git(*self._author_args(), "commit", "-m", msg)
+        return GitResult(
+            ok=True,
+            message="Committed",
+            changed_files=tuple(f.name for f in files),
+        )
 
     async def get_status(self) -> SyncStatus:
         """Return current sync status per spec §8.1.
@@ -217,7 +329,31 @@ class GitManager:
         return None
 
     async def get_changed_files(self) -> list[FileChange]:
-        return []
+        """Return staged + unstaged tracked YAML changes (root-level)."""
+        if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
+            return []
+
+        rc, out, _ = await self._run_git(
+            "status", "--porcelain=v1", check=False
+        )
+        if rc != 0:
+            return []
+
+        result: list[FileChange] = []
+        for line in out.splitlines():
+            if len(line) < 4:
+                continue
+            staged_code = line[0]
+            unstaged_code = line[1]
+            name = line[3:].strip()
+            if not name.endswith(".yaml") or "/" in name:
+                continue
+            if name in SECRETS_FILENAMES or name.endswith(".secrets.yaml"):
+                continue
+            primary = staged_code if staged_code != " " else unstaged_code
+            mapped = primary if primary in {"M", "A", "D", "R"} else "?"
+            result.append(FileChange(status=mapped, name=name))
+        return result
 
     async def generate_ssh_key(self) -> str:
         raise NotImplementedError
@@ -256,6 +392,92 @@ class GitManager:
                 f"git {subcmd} failed (exit {rc}): {stderr.strip() or stdout.strip()}"
             )
         return rc, stdout, stderr
+
+    async def _require_initialized(self) -> None:
+        """Raise GitError if `.git/` is missing in the configured working tree."""
+        if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
+            raise GitError(
+                "Repository not initialized. Call initialize() first."
+            )
+
+    async def _stage_yaml_files(self) -> list[FileChange]:
+        """Stage root-level YAML files (excluding secrets) and return staged FileChanges.
+
+        Performs the secrets panic guard from spec §10 / security.mdc: if any
+        secrets-like file ends up staged (e.g. user removed it from
+        .gitignore and force-added it), it is unstaged and GitError is
+        raised so the push/commit aborts loud and clear.
+        """
+        yaml_files = self._get_yaml_files()
+        if yaml_files:
+            await self._run_git("add", "--", *yaml_files)
+
+        rc, ls_out, _ = await self._run_git(
+            "ls-files", "--", "*.yaml", check=False
+        )
+        if rc == 0:
+            tracked = [
+                f
+                for f in (line.strip() for line in ls_out.splitlines())
+                if f
+                and "/" not in f
+                and f not in SECRETS_FILENAMES
+                and not f.endswith(".secrets.yaml")
+            ]
+            if tracked:
+                await self._run_git(
+                    "add", "--update", "--", *tracked, check=False
+                )
+
+        rc, staged_out, _ = await self._run_git(
+            "diff", "--cached", "--name-only", check=False
+        )
+        if rc != 0:
+            raise GitError("failed to inspect staged files")
+
+        staged = [s for s in staged_out.splitlines() if s.strip()]
+        leaked = [
+            f
+            for f in staged
+            if f in SECRETS_FILENAMES or f.endswith(".secrets.yaml")
+        ]
+        if leaked:
+            for f in leaked:
+                await self._run_git("reset", "HEAD", "--", f, check=False)
+            raise GitError(
+                "Refused to push: secrets file(s) detected in staged area: "
+                f"{', '.join(leaked)}"
+            )
+
+        return await self._get_staged_changes()
+
+    async def _get_staged_changes(self) -> list[FileChange]:
+        """Return staged changes as FileChange list, parsed from diff --name-status."""
+        rc, out, _ = await self._run_git(
+            "diff", "--cached", "--name-status", check=False
+        )
+        if rc != 0:
+            return []
+        result: list[FileChange] = []
+        for line in out.splitlines():
+            if not line.strip():
+                continue
+            parts = line.split("\t", 1)
+            if len(parts) != 2:
+                continue
+            status = parts[0].strip()[:1]
+            result.append(FileChange(status=status, name=parts[1].strip()))
+        return result
+
+    @staticmethod
+    def _classify_push_error(exc: GitError) -> GitError:
+        """Translate raw git push errors into a more actionable message."""
+        msg = str(exc).lower()
+        if "rejected" in msg or "non-fast-forward" in msg or "fetch first" in msg:
+            return GitError(
+                "Push rejected: remote has new changes. Pull first."
+            )
+        return exc
 
     async def _ensure_remote(self) -> None:
         """Make sure `origin` points at the configured repo URL."""
@@ -316,9 +538,7 @@ class GitManager:
             f"user.email={self._author_email}",
         )
 
-    def _build_commit_message(
-        self, changed_files: list[FileChange], version: str
-    ) -> str:
+    def _build_commit_message(self, changed_files: list[FileChange]) -> str:
         """Build the adaptive commit subject + body per spec §8.3."""
         names = [f.name for f in changed_files]
         if len(names) == 1:
@@ -330,10 +550,9 @@ class GitManager:
                 f"Update: {names[0]}, {names[1]} (+{len(names) - 2} more)"
             )
 
-        from datetime import datetime
-
         file_lines = "\n".join(f"  {f.status}  {f.name}" for f in changed_files)
         timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+        version = _read_integration_version()
 
         return (
             f"{subject}\n\n"
