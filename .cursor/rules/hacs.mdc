@@ -1,0 +1,89 @@
+---
+description: HACS integration requirements — manifest, hacs.json, validation, releases
+globs: '{custom_components/**/manifest.json,hacs.json,.github/workflows/*.yml}'
+alwaysApply: false
+---
+
+# HACS Rules
+
+См. спеку §5.2–5.3 и §11.
+
+## manifest.json (`custom_components/ha_gitops/manifest.json`)
+
+Обязательные поля:
+
+```json
+{
+  "domain": "ha_gitops",
+  "name": "HA GitOps",
+  "version": "X.Y.Z",
+  "documentation": "https://github.com/<owner>/ha-gitops",
+  "issue_tracker": "https://github.com/<owner>/ha-gitops/issues",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@<owner>"],
+  "iot_class": "local_push",
+  "config_flow": false
+}
+```
+
+Правила:
+
+- `domain` навсегда = `ha_gitops`. Не менять.
+- `version` — semver (`MAJOR.MINOR.PATCH`). Поднимать в каждом релизе. Должен совпадать с git-тегом (`vX.Y.Z`).
+- `requirements` — пусто в MVP (зависимость на `git` binary не Python). В Release добавить `"GitPython>=3.1"` (точное имя пакета на PyPI).
+- `iot_class` = `local_push` (не менять без обоснования; см. HA dev docs).
+- `config_flow` = `false` для MVP, `true` при добавлении `config_flow.py` (Release).
+- `codeowners` — массив GH-handles с `@`.
+
+## hacs.json (в корне репо)
+
+```json
+{
+  "name": "HA GitOps",
+  "filename": "ha_gitops.zip",
+  "content_in_root": false,
+  "hide_default_branch": false,
+  "homeassistant": "2024.1.0"
+}
+```
+
+- `content_in_root: false` — компонент лежит в `custom_components/ha_gitops/`.
+- `homeassistant` — минимальная поддерживаемая версия HA. Поднимать только при намеренном переходе.
+- `filename` — для совместимости с старыми установщиками; современный HACS это поле часто игнорирует, но оставляем.
+
+## Валидация в CI (`.github/workflows/validate.yml`)
+
+Минимум обязательные шаги:
+
+- **hassfest** — `home-assistant/actions/hassfest@master` (валидирует manifest.json и структуру).
+- **HACS validation** — `hacs/action@main` с `category: integration`.
+- **pytest** — на матрице Python 3.11/3.12.
+- Линт/формат — `ruff check`, `black --check`.
+
+Любой fail = красный CI = блокировка merge.
+
+## Релизы (`.github/workflows/release.yml`)
+
+- Триггер — push тега `v*.*.*`.
+- Версия в `manifest.json` должна совпадать с тегом (без `v`). Можно автоматизировать через скрипт, но всё равно проверять перед `git tag`.
+- GitHub Release создаётся автоматически с release notes (генерация из commit log по conventional commits — см. `git-conventions.mdc`).
+- НЕ публиковать pre-release теги (`-alpha`, `-rc`) в default-ветку HACS до стабилизации. Использовать pre-release ветку или отдельный repo-флаг.
+
+## Ограничения HACS
+
+- НЕ ставить файлы интеграции в корень репозитория — только в `custom_components/<domain>/`.
+- НЕ использовать симлинки внутри `custom_components/`.
+- НЕ требовать system-зависимости через `manifest.requirements` (только PyPI). `git` binary документируется в README как prerequisite.
+- README обязателен в корне; должен содержать установку через HACS, configuration.yaml пример, prerequisites (git binary), troubleshooting.
+
+## Submission в HACS Store (Release)
+
+Перед подачей:
+
+- [ ] Зелёный CI (hassfest + HACS action) на main.
+- [ ] Минимум один tagged release (`v0.x.0`).
+- [ ] README с install/usage.
+- [ ] Issue tracker открыт.
+- [ ] Лицензия (`LICENSE`, MIT).
+- [ ] `info.md` (опционально, отображается на HACS-карточке).

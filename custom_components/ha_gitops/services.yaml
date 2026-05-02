@@ -1,0 +1,4 @@
+# Services for ha_gitops.
+#
+# MVP: no public services (Pull / Push are exposed as button entities).
+# Release: ha_gitops.commit will be defined here per docs/ha-gitops-proj-spec.md §F15.

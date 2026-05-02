@@ -1,0 +1,87 @@
+---
+description: Home Assistant integration conventions (entities, config, async, GitManager contract)
+globs: 'custom_components/**/*.py'
+alwaysApply: false
+---
+
+# Home Assistant Integration Rules
+
+Применяются ко всему коду внутри `custom_components/ha_gitops/`.
+
+## Bootstrap
+
+- `DOMAIN = "ha_gitops"` — единственный источник в `const.py`. Не дублировать литерал.
+- MVP: конфиг через `configuration.yaml` → `async_setup(hass, config)`. Release: `async_setup_entry(hass, entry)` + `config_flow.py`.
+- Состояние интеграции — в `hass.data[DOMAIN]`. Хранить там единственный экземпляр `GitManager` и список разворачиваемых entity-ID.
+- Регистрация платформ через `await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "button"])` (Release) либо через `discovery.async_load_platform(...)` (MVP YAML-only).
+- `manifest.json` — поля строго по спеке §5.2: `domain`, `name`, `version`, `documentation`, `issue_tracker`, `requirements`, `dependencies`, `codeowners`, `iot_class: "local_push"`, `config_flow` (`false` MVP / `true` Release).
+
+## Async-контракт
+
+- Все методы `GitManager` и все `async_*` коллбэки HA — **async**.
+- Любая блокирующая операция (subprocess, file I/O, ssh-keygen) — через `asyncio.create_subprocess_exec` либо `hass.async_add_executor_job`.
+- Запрещены: `time.sleep`, `subprocess.run`, `requests`, `os.system`, чтение/запись файлов через `open()` без executor.
+- Polling сенсора: `SCAN_INTERVAL = timedelta(seconds=...)` берётся из конфига (`scan_interval`, дефолт 300). Сенсор реализует `async_update`, не `update`.
+
+## GitManager — публичный контракт (см. спеку §8)
+
+```python
+class GitManager:
+    async def initialize(self) -> None: ...
+    async def push(self) -> GitResult: ...
+    async def pull(self) -> GitResult: ...
+    async def fetch(self) -> GitResult: ...
+    async def commit(self, message: str | None = None) -> GitResult: ...
+    async def get_status(self) -> SyncStatus: ...
+    async def get_local_commit(self) -> CommitInfo: ...
+    async def get_remote_commit(self) -> CommitInfo: ...
+    async def get_changed_files(self) -> list[FileChange]: ...
+    async def generate_ssh_key(self) -> str: ...
+    async def test_connection(self) -> bool: ...
+```
+
+- Сигнатуры — стабильный API. Менять можно только расширяя (новые kwargs с дефолтами).
+- Внутренние: `_run_git`, `_build_ssh_env`, `_get_yaml_files`, `_build_commit_message` — менять свободно.
+- При миграции на `gitpython` (Release) публичный API не меняется.
+
+## Логика операций
+
+- **Push** — единое атомарное действие: `git add` (только yaml через `_get_yaml_files`) → проверка staged → `git commit` (если diff) → `git push`. Если ничего не staged, но есть unpushed — только `git push`. Если ничего нет — no-op + `SyncStatus.CLEAN`. См. спеку §7.1.
+- **Pull** — только `git fetch` + `git merge --ff-only origin/<branch>`. Никаких `--rebase`, `--no-ff`, `reset --hard` без явного флага в Release.
+- **Status** — алгоритм из §8.1: `fetch` → `git status --porcelain` → `rev-parse HEAD` vs `origin/<branch>` → `merge-base`. Реализовать ровно так.
+- Commit message — формат из §8.3 (`_build_commit_message`). Co-authored-by trailer обязателен. Author/email — через `git -c user.name=... -c user.email=...`, НЕ глобальный `git config`.
+
+## Entities
+
+### Sensor `ha_gitops_status`
+
+- `device_class` не задаётся (произвольный enum).
+- `state` — значение `SyncStatus` (строка).
+- Атрибуты: `last_operation`, `last_operation_time` (ISO), `last_error` (str | None), `local_commit` (short hash), `remote_commit` (short hash).
+- `unique_id`: `f"{DOMAIN}_status"`.
+
+### Button `ha_gitops_pull`, `ha_gitops_push`
+
+- `async_press` — вызывает соответствующий метод `GitManager`, ловит `GitError`, выставляет статус через координатор/общую ссылку, шлёт `persistent_notification.create` при ошибке/важном событии (например, успешный pull → "Конфиг обновлён, рекомендуется перезагрузка HA").
+- `unique_id`: `f"{DOMAIN}_{action}"`.
+
+### Общее для entities
+
+- `_attr_has_entity_name = True`, `_attr_name` — человекочитаемое EN-имя; локализация — через `translations/`.
+- `entity_category = EntityCategory.DIAGNOSTIC` для статус-сенсора, `EntityCategory.CONFIG` для кнопок.
+- НЕ держать в entity ссылок на `subprocess`/git напрямую — только через `GitManager`.
+
+## Notifications
+
+- При важных событиях звать `hass.services.async_call("persistent_notification", "create", {...})`:
+  - успешный `pull` с изменениями → "Config updated, HA reload recommended";
+  - `push rejected` → "Remote has new changes. Pull first.";
+  - конфликт/diverged → инструкция, ручное вмешательство;
+  - `secrets.yaml` обнаружен в staged → ERROR-нотификация (см. `security.mdc`).
+- В тексте уведомлений — не цитировать stderr целиком, отдавать sanitized сообщение (без путей к ключам, без потенциальных credentials).
+
+## Запреты
+
+- НЕ использовать `hass.async_create_task` для git-операций без обработки исключений — они проглатываются.
+- НЕ вызывать `hass.async_block_till_done()` в продакшен-коде (только в тестах).
+- НЕ делать reload интеграции автоматически при изменениях файлов в Pull — только нотификация (см. спеку §15, открытый вопрос 1).

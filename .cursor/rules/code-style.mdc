@@ -1,0 +1,98 @@
+---
+description: Python code style, practices, lint/format rules, and common snippets
+globs: '**/*.py'
+alwaysApply: false
+---
+
+# Code Style & Practices
+
+## Базовые правила
+
+- Python 3.11+, `from __future__ import annotations` в каждом модуле.
+- Type hints обязательны на всех публичных функциях/методах и dataclass-полях. PEP 604 (`X | None`) предпочтительнее `Optional[X]`.
+- Имена: `snake_case` для функций/переменных, `PascalCase` для классов, `UPPER_SNAKE` для констант. DOMAIN всегда `ha_gitops`.
+- Docstring — короткий, императивно, на английском. Достаточно одной строки для тривиальных методов.
+- Не писать комментарии-нарративы (`# increment counter`). Комментарии — только про неочевидные намерения, ограничения, edge cases.
+
+## Lint & Format
+
+- **ruff** (lint + import sort) и **black** (format) — настраиваются в `pyproject.toml`. Line length: **100**.
+- Включённые ruff-наборы (рекомендуется): `E,F,W,I,N,UP,B,SIM,ASYNC,PTH,RUF`.
+- `mypy --strict` для `custom_components/ha_gitops/**` — желательно, минимум без `Any` в публичном API `GitManager`.
+
+## Async & I/O
+
+- Все методы `GitManager` — `async def`. Никаких sync-обёрток над async (`asyncio.run` в продакшен-коде запрещён).
+- Любой блокирующий вызов (file I/O, `chmod`, `Path.write_text`) — через `await hass.async_add_executor_job(...)`.
+- subprocess — только `asyncio.create_subprocess_exec` с `stdout=PIPE, stderr=PIPE`. Никогда `shell=True`.
+
+## Errors & Logging
+
+- Логгер: `_LOGGER = logging.getLogger(__name__)` на уровне модуля.
+- Свои исключения — в `git_manager.py`: `GitError(Exception)`, опционально `GitAuthError`, `GitConflictError`. Не пробрасывать `subprocess.CalledProcessError` наружу.
+- Wrap внешних ошибок: `raise GitError(f"git push failed: {stderr.strip()}") from exc`.
+- Уровни: `DEBUG` — argv git-команды (БЕЗ env), `INFO` — успешные операции, `WARNING` — recoverable (нечего push), `ERROR` — провал операции.
+- НЕ логировать: содержимое `GIT_SSH_COMMAND`, путь к ключу с токенами, stderr с возможными credentials.
+
+## Snippets (use these by default)
+
+- Логгер модуля:
+
+  ```python
+  import logging
+  _LOGGER = logging.getLogger(__name__)
+  ```
+
+- Запуск git через subprocess:
+
+  ```python
+  proc = await asyncio.create_subprocess_exec(
+      "git", *args,
+      cwd=str(self._config_dir),
+      env=self._build_ssh_env(),
+      stdout=asyncio.subprocess.PIPE,
+      stderr=asyncio.subprocess.PIPE,
+  )
+  stdout_b, stderr_b = await proc.communicate()
+  return proc.returncode or 0, stdout_b.decode(), stderr_b.decode()
+  ```
+
+- Error wrap:
+
+  ```python
+  raise GitError(f"git {cmd} failed (exit {rc}): {stderr.strip()}")
+  ```
+
+- HA-safe blocking I/O:
+
+  ```python
+  await hass.async_add_executor_job(self._key_path.write_bytes, key_bytes)
+  await hass.async_add_executor_job(os.chmod, self._key_path, 0o600)
+  ```
+
+- Dataclass для результатов:
+
+  ```python
+  from dataclasses import dataclass
+
+  @dataclass(slots=True, frozen=True)
+  class GitResult:
+      ok: bool
+      message: str
+      changed_files: tuple[str, ...] = ()
+  ```
+
+- Enum для статуса:
+
+  ```python
+  from enum import StrEnum
+
+  class SyncStatus(StrEnum):
+      CLEAN = "clean"
+      MODIFIED = "modified"
+      AHEAD = "ahead"
+      BEHIND = "behind"
+      DIVERGED = "diverged"
+      ERROR = "error"
+      UNKNOWN = "unknown"
+  ```

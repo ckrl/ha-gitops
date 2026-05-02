@@ -1,0 +1,78 @@
+---
+description: Security-critical rules — secrets.yaml, SSH keys, known_hosts, sanitized logging
+globs:
+alwaysApply: true
+---
+
+# Security Rules (CRITICAL)
+
+Несоблюдение этих правил = баг безопасности. См. спеку §10.
+
+## secrets.yaml — двойная защита, всегда
+
+1. **`.gitignore`** — записи `secrets.yaml`, `secrets_backup.yaml`, `*.secrets.yaml` создаются и поддерживаются `GitManager` автоматически. Не позволять пользователю переопределить.
+2. **Panic guard в коде** — `_get_yaml_files()` явно фильтрует `secrets.yaml` и `*.secrets.yaml` ДО любого `git add`.
+3. **Pre-push проверка** — перед `git push` запускать `git diff --cached --name-only`; если в staged есть `secrets*.yaml` — `git reset HEAD <file>`, abort, ERROR-лог, `persistent_notification`.
+
+Никогда:
+
+- НЕ добавлять флаг/опцию для включения `secrets.yaml` в синхронизацию.
+- НЕ читать содержимое `secrets.yaml` в коде интеграции.
+- НЕ выводить путь `secrets.yaml` пользователю в advisory-режиме как "можно добавить".
+
+## Runtime-state HA — никогда
+
+Всегда исключены из git (через `.gitignore`, генерируемый из `const.py`):
+
+- `.storage/`
+- `.cloud/`
+- `core_*` (любые файлы, начинающиеся с `core_`)
+- `home-assistant_v2.db`, `home-assistant_v2.db-shm`, `home-assistant_v2.db-wal`
+- `home-assistant.log`, `home-assistant.log.1`
+- `__pycache__/`, `*.pyc`, `*.tmp`, `*.bak`
+
+Эти паттерны управляются интеграцией. Если пользователь удалил/изменил блок `# ha-gitops:` в `.gitignore` — пересоздать при следующей операции, WARNING в лог.
+
+## SSH-ключи
+
+- Каталог: `/config/.ha_gitops/` (через `hass.config.path(".ha_gitops")`).
+- Файлы: `id_ed25519` (приватный, **chmod 600**), `id_ed25519.pub` (публичный), `known_hosts`.
+- Генерация — только **ED25519** (`ssh-keygen -t ed25519 -N "" -f <path>` через executor) либо чистый Python (`cryptography.hazmat`) в Release. RSA/DSA/ECDSA — нет.
+- `chmod 600` устанавливается программно сразу после создания/записи.
+- Каталог `.ha_gitops/` обязательно в `.gitignore`. Двойная проверка: при initialize и перед каждым push.
+- Приватный ключ:
+  - НЕ читать его содержимое в коде интеграции (передавать только путь через `GIT_SSH_COMMAND`);
+  - НЕ возвращать через service-вызов или атрибут сенсора;
+  - НЕ логировать ни на каком уровне.
+
+## Git over SSH — настройки
+
+- Использовать переменную окружения `GIT_SSH_COMMAND`:
+
+```
+GIT_SSH_COMMAND="ssh -i <key_path> -o UserKnownHostsFile=<config>/.ha_gitops/known_hosts -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes"
+```
+
+- `IdentitiesOnly=yes` обязательно — иначе ssh может подсунуть ключ из агента/`~/.ssh`.
+- `StrictHostKeyChecking=accept-new` — только при первом подключении (нет записи в known_hosts). Уже известные хосты должны проверяться строго (`accept-new` это позволяет).
+- НЕ устанавливать `StrictHostKeyChecking=no` ни при каких условиях.
+
+## HTTPS auth (Release)
+
+- Token/password — через `homeassistant.helpers.storage.Store` или ConfigEntry credentials, не в `configuration.yaml` plaintext.
+- НЕ логировать URL с креденшелами (`https://user:token@...`).
+- В URL для git-операций — встраивать токен только в env/`-c http.extraheader=`, не в remote URL на диске.
+
+## Sanitized logging
+
+- При любом ERROR от git: логировать `cmd` без env, sanitized stderr (заменить пути ключей на `<key>`, убрать токены/URL с credentials).
+- В `persistent_notification.create` — короткое человеческое сообщение, БЕЗ stderr-дампа.
+- DEBUG-логи могут содержать argv, но НЕ env (там `GIT_SSH_COMMAND` с путём к ключу — путь не секрет, но политика — не дублировать).
+
+## Чек-лист перед merge PR с изменением git-логики
+
+- [ ] `secrets.yaml` исключён в `_get_yaml_files()` и проверяется в pre-push guard.
+- [ ] Новые файлы/паттерны runtime-state добавлены в `.gitignore`-шаблон в `const.py`.
+- [ ] Все subprocess-вызовы используют `_build_ssh_env()`, не дёргают глобальный `~/.ssh/config`.
+- [ ] Нет логирования содержимого ключей, токенов, secrets.yaml.
+- [ ] Тесты покрывают: попытку добавить secrets.yaml, отсутствие `.gitignore`, удаление `.gitignore` пользователем.

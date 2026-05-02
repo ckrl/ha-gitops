@@ -1,0 +1,19 @@
+{
+  "title": "HA GitOps",
+  "config": {},
+  "entity": {
+    "sensor": {
+      "sync_status": {
+        "name": "Sync status"
+      }
+    },
+    "button": {
+      "pull": {
+        "name": "Pull"
+      },
+      "push": {
+        "name": "Push"
+      }
+    }
+  }
+}

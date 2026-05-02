@@ -1,0 +1,52 @@
+---
+description: Git workflow, conventional commits, and merge policy
+globs:
+alwaysApply: true
+---
+
+# Git Conventions
+
+- Always run `git status` before staging/committing to review changes.
+- Commit messages MUST be in **English**.
+- Never commit secrets, `.env`, tokens, or private keys.
+
+## Conventional Commits
+
+- Format: `<type>(optional scope)!: <short, imperative summary>`
+- First line <= 72 chars, no trailing period. Use imperative mood (add, fix, update).
+- Common types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert.
+- Scopes (suggested): api, http, routes, config, data, ent, migrations, redis, cache, auth, docs, deps, infra, docker, k8s, tests, ci.
+- Breaking change: add `!` after type/scope **or** a `BREAKING CHANGE:` footer.
+- Add an optional body after a blank line to explain **what** and **why** (not how).
+- Optional footers: `Refs: #123`, `Co-authored-by: Name <email>`.
+
+### Examples
+
+- `feat(api): add /v1/health/check endpoint`
+- `fix(redis): correct TTL parsing for cache keys`
+- `refactor(ent): split user repository into separate package`
+- `perf(http)!: enable gzip by default for large JSON responses`
+- Body example:
+  ```
+  Add rate limiting middleware for write endpoints.
+  This prevents abuse and aligns with SLOs.
+
+  Refs: #123
+  ```
+
+## Merge Policy
+
+- Use **no fast-forward merges** (`--no-ff`) to preserve branch history.
+- Provide a concise merge summary (e.g., `merge(api): add JWT middleware`).
+- Do **not** `git pull` remote changes into a feature branch **during merge**. Rebase or merge explicitly via PR instead.
+
+## Local Commit Message Linting
+
+- Use **gitlint** (CLI) with the `contrib-title-conventional-commits` rule.
+- Recommended hook manager: **Lefthook**. Example hook: `commit-msg: gitlint --msg-filename $1`
+- Enforce title length (<=72), Conventional type, and English summary.
+
+## CI Recommendations
+
+- Run `gitlint` on all PR commits (e.g., GitHub Action `jorisroovers/gitlint-action`).
+- Optionally require 1+ approval and green checks before `--no-ff` merge.

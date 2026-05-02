@@ -1,0 +1,12 @@
+{
+  "domain": "ha_gitops",
+  "name": "HA GitOps",
+  "version": "0.1.0",
+  "documentation": "https://github.com/username/ha-gitops",
+  "issue_tracker": "https://github.com/username/ha-gitops/issues",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@username"],
+  "iot_class": "local_push",
+  "config_flow": false
+}

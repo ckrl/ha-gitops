@@ -1,0 +1,65 @@
+---
+description: Testing rules — pytest, HA test harness, GitManager fixtures
+globs: 'tests/**/*.py'
+alwaysApply: false
+---
+
+# Testing Rules
+
+## Стек
+
+- **pytest** + **pytest-asyncio** (`asyncio_mode = "auto"` в `pyproject.toml`).
+- **pytest-homeassistant-custom-component** — фикстуры `hass`, `enable_custom_integrations`, `mock_config_entry`.
+- Покрытие — `pytest-cov`. Цель MVP: ≥ 80% по `git_manager.py`, ≥ 60% по `sensor.py`/`button.py`.
+
+## Структура
+
+- Файлы: `tests/test_<module>.py` (по одному на модуль `custom_components/ha_gitops/`).
+- `tests/conftest.py` — общие фикстуры: `hass` (из HA testing), временные директории, реальный bare git remote.
+- Один тест — одна проверка. Имена: `test_<unit>_<condition>_<expected>` (например, `test_push_no_changes_returns_clean`).
+
+## Фикстуры
+
+- `tmp_path` — для конфиг-директории HA.
+- `bare_remote` — фикстура с реальным `git init --bare` во временном каталоге; URL — `file://{path}`. Это позволяет тестировать `push`/`pull`/`fetch` без сети и без моков subprocess.
+- `git_manager` — собранный `GitManager` с `tmp_path` как config_dir и `bare_remote` как `repo_url`. SSH-ключ для `file://` remote не нужен.
+- Для тестов SSH-логики (env, аргументы) — мокать `asyncio.create_subprocess_exec` через `monkeypatch`/`AsyncMock`.
+
+## Что тестировать обязательно
+
+`git_manager.py`:
+
+- `initialize` создаёт `.git/`, `.gitignore` с блоком `# ha-gitops:`, не дублирует блок при повторном запуске.
+- `_get_yaml_files()` исключает `secrets.yaml`, `secrets_backup.yaml`, `*.secrets.yaml`, файлы из подпапок (только корень).
+- **Panic guard**: вручную staged `secrets.yaml` → `push` делает reset, не пушит, возвращает ERROR.
+- `push` без изменений и без unpushed коммитов → no-op, `SyncStatus.CLEAN`, нет пустого коммита.
+- `push` с unpushed коммитом, но без staged изменений → выполняется только `git push`.
+- `pull` ff-only: успех при behind, отказ + `DIVERGED` при diverged ветках.
+- `get_status` возвращает корректный `SyncStatus` для всех 7 вариантов (`clean`, `modified`, `ahead`, `behind`, `diverged`, `error`, `unknown`).
+- `_build_commit_message`: 1 файл / 2-3 файла / 4+ файла — формат subject из спеки §8.3, body содержит timestamp и `Co-authored-by`.
+- `_build_ssh_env` содержит `GIT_SSH_COMMAND` с правильным путём ключа, `IdentitiesOnly=yes`, не пробрасывает `~/.ssh`.
+- Author/email подставляются через `-c user.name=... -c user.email=...`, не через global config (проверяется через argv мока).
+- SSH-ключ при генерации получает права `0o600` (проверять `Path.stat().st_mode & 0o777`).
+
+`sensor.py` / `button.py`:
+
+- Сенсор отображает корректный state и атрибуты после `async_update`.
+- Кнопки `pull`/`push` дёргают соответствующие методы `GitManager` (мок) и обрабатывают `GitError` без исключения наружу.
+- При ошибке кнопка вызывает `persistent_notification.create` (через мок `hass.services`).
+
+`__init__.py`:
+
+- `async_setup` с минимальным YAML-конфигом регистрирует домен и платформы.
+- Отсутствие `git` binary → понятная ошибка setup, HA не падает.
+
+## Конвенции
+
+- Не мокать то, что можно запустить дёшево. Реальный git в `tmp_path` быстрее и надёжнее, чем простыни моков subprocess.
+- Use `pytest.raises(GitError, match="...")` для негативных кейсов.
+- НЕ использовать `time.sleep`, `asyncio.sleep` в тестах для синхронизации — только `await hass.async_block_till_done()`.
+- Хранить тестовые YAML-файлы как inline-строки в тестах, не как `tests/fixtures/*.yaml`, пока их меньше 5 на тест.
+
+## CI gating
+
+- Lint (`ruff check`), format check (`black --check`), type check (`mypy` если включён), `pytest` — обязательные шаги в `validate.yml`.
+- Падение тестов или lint = блокировка merge.

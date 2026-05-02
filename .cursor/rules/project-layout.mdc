@@ -1,0 +1,54 @@
+---
+description: Project directory structure and package responsibilities
+globs:
+alwaysApply: true
+---
+
+# Project Layout (keep this shape)
+
+Опорная схема — раздел 5.1 спеки `docs/ha-gitops-proj-spec.md`. Не меняй без обновления спеки.
+
+```
+ha-gitops/
+├── custom_components/
+│   └── ha_gitops/
+│       ├── __init__.py          # async_setup / async_setup_entry, регистрация платформ
+│       ├── manifest.json        # HACS manifest (domain, version, codeowners, iot_class)
+│       ├── const.py             # DOMAIN, CONF_*, дефолты, ключи статусов
+│       ├── git_manager.py       # ВСЯ git-логика; класс GitManager — единственная точка вызовов git
+│       ├── sensor.py            # SensorEntity: ha_gitops_status (+ extra в Release)
+│       ├── button.py            # ButtonEntity: ha_gitops_pull, ha_gitops_push
+│       ├── config_flow.py       # UI Config Flow (Release; MVP — заглушка/отсутствует)
+│       ├── services.yaml        # описание сервисов
+│       ├── strings.json         # UI-строки (en по умолчанию)
+│       └── translations/
+│           ├── en.json
+│           └── ru.json
+├── tests/
+│   ├── conftest.py              # фикстуры HA + временный git repo
+│   ├── test_git_manager.py      # unit + integration тесты GitManager
+│   ├── test_sensor.py
+│   └── test_button.py
+├── docs/                        # ТЗ и доп. документация
+├── hacs.json                    # HACS metadata (см. hacs.mdc)
+├── README.md                    # установка, configuration.yaml пример, prerequisites
+├── LICENSE                      # MIT
+├── pyproject.toml               # dev-зависимости, pytest config, ruff/black
+└── .github/workflows/
+    ├── validate.yml             # hassfest + HACS validation + pytest
+    └── release.yml              # автотег + release notes
+```
+
+## Ответственность модулей
+
+- `__init__.py` — bootstrap: чтение конфига (YAML или ConfigEntry), создание `GitManager`, форвард на платформы `sensor`/`button`. Никакой git-логики.
+- `const.py` — все литералы: `DOMAIN = "ha_gitops"`, `CONF_REPO_URL`, `CONF_BRANCH`, `CONF_SSH_KEY_PATH`, `CONF_GIT_AUTHOR_NAME`, `CONF_GIT_AUTHOR_EMAIL`, `CONF_SCAN_INTERVAL`, значения `SyncStatus`, дефолтный `.gitignore`-блок.
+- `git_manager.py` — публичный API: `initialize`, `push`, `pull`, `fetch`, `commit`, `get_status`, `get_local_commit`, `get_remote_commit`, `get_changed_files`, `generate_ssh_key`, `test_connection`. См. спеку §8 и `home-assistant.mdc`.
+- `sensor.py` / `button.py` — только entity-обёртки; делегируют в `GitManager`. Никаких прямых вызовов `git`.
+- `tests/` — `conftest.py` создаёт временный bare-repo и working tree, чтобы тесты `GitManager` не мокали git целиком.
+
+## Запреты
+
+- НЕ создавать новые top-level пакеты под `custom_components/ha_gitops/` без явной необходимости (плоская структура — норма для HA-интеграций).
+- НЕ выносить `GitManager` в отдельный pip-пакет — это ломает HACS-distribution.
+- НЕ хранить состояние в module-level globals; всё — в `hass.data[DOMAIN]`.

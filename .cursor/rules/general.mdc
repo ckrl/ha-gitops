@@ -1,0 +1,43 @@
+---
+description: Core stack, critical rules, and do/don't guidelines for ha-gitops
+globs:
+alwaysApply: true
+---
+
+# General Rules
+
+## Important
+
+- Проект — кастомная **Home Assistant integration** `ha_gitops`, распространяется через HACS.
+- Источник истины по требованиям — `docs/ha-gitops-proj-spec.md`. При расхождении кода и спеки — спека выигрывает; правки в спеку обсуждать отдельно.
+- DOMAIN компонента: `ha_gitops`. Менять нельзя — ломает существующие конфиги.
+- Все ответы и обсуждения — на русском; код, идентификаторы, commit messages, UI-строки и логи — на английском.
+
+## Core Stack (do NOT switch unless explicitly asked)
+
+- **Python 3.11+** (соответствует HA 2024.1+).
+- **Home Assistant Core API** (`homeassistant.*`) — entity-модель, config flow, services.
+- **asyncio** — все I/O-операции неблокирующие; `asyncio.create_subprocess_exec` для git-вызовов в MVP.
+- **git CLI** (subprocess) — git backend для MVP. В Release — миграция на `gitpython` без слома публичного API `GitManager`.
+- **pytest** + `pytest-homeassistant-custom-component` — тесты.
+- **HACS** — дистрибуция (manifest.json + hacs.json).
+
+Запрещено вводить без обсуждения: `dulwich`, `pygit2`, `paramiko`, FastAPI/Flask, ORM, БД, Node.js-инструменты.
+
+## DO
+
+- Использовать `async def` + `await` для всех git/IO операций; никаких `subprocess.run`/`os.system` в продакшен-коде.
+- Логировать через `logging.getLogger(__name__)`; имя логгера — `custom_components.ha_gitops.<module>`.
+- Идемпотентность: повторный `push` без изменений = no-op (без пустого коммита). Повторный `initialize` не падает.
+- Любая git-ошибка → `SyncStatus.ERROR` в сенсоре + `persistent_notification` с человекочитаемым текстом, HA не падает.
+- Все пути — `pathlib.Path`, не `str`. Конфиг-директория HA — `hass.config.path(...)`.
+- Type hints на всех публичных функциях. `from __future__ import annotations` в каждом модуле.
+
+## DON'T
+
+- НЕ коммитить и НЕ синхронизировать `secrets.yaml`, `.storage/`, `.cloud/`, `core_*`, `home-assistant_v2.db*`, `home-assistant.log*` — никогда, ни при каких флагах (см. `security.mdc`).
+- НЕ блокировать event loop HA: никаких sync-вызовов `subprocess`, `time.sleep`, тяжёлых файловых операций без `hass.async_add_executor_job`.
+- НЕ делать `git pull` без `--ff-only`; авто-merge при конфликтах запрещён — только статус `diverged` и уведомление.
+- НЕ хранить SSH-ключи или токены в логах, атрибутах сенсоров, persistent notifications.
+- НЕ менять глобальный `git config` пользователя — author/email через `git -c user.name=... -c user.email=...` per-call.
+- НЕ добавлять кастомные `chore:`/`fix:` префиксы в commit messages интеграции (см. `git-conventions.mdc` — это для разработки самой ha-gitops; формат коммитов от ha_gitops в репо пользователя описан в спеке §8.3).
