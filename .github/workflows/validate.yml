@@ -30,13 +30,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v3
         with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e ".[dev]"
-      - run: ruff check .
-      - run: black --check .
+          enable-cache: true
+      - run: uv sync --extra dev
+      - run: uv run ruff check .
+      - run: uv run black --check .
 
   test:
     name: pytest (Python ${{ matrix.python-version }})
@@ -47,14 +46,13 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v3
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
+          enable-cache: true
       - name: Configure git for tests
         run: |
           git config --global user.email "ci@example.com"
           git config --global user.name "CI"
           git config --global init.defaultBranch main
-      - run: pip install -e ".[dev]"
-      - run: pytest -v --cov=custom_components/ha_gitops --cov-report=term-missing
+      - run: uv sync --python ${{ matrix.python-version }} --extra dev
+      - run: uv run pytest -v --cov=custom_components/ha_gitops --cov-report=term-missing

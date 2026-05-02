@@ -20,6 +20,7 @@ alwaysApply: true
 - **asyncio** — все I/O-операции неблокирующие; `asyncio.create_subprocess_exec` для git-вызовов в MVP.
 - **git CLI** (subprocess) — git backend для MVP. В Release — миграция на `gitpython` без слома публичного API `GitManager`.
 - **pytest** + `pytest-homeassistant-custom-component` — тесты.
+- **uv** (Astral) — управление venv и зависимостями. Версия Python пинится через `.python-version`, lockfile — `uv.lock`. Команды: `uv sync --extra dev`, `uv run pytest`, `uv add --dev <pkg>`. НЕ использовать `pip install` напрямую и не вводить параллельный `Pipfile`/`poetry.lock`.
 - **HACS** — дистрибуция (manifest.json + hacs.json).
 
 Запрещено вводить без обсуждения: `dulwich`, `pygit2`, `paramiko`, FastAPI/Flask, ORM, БД, Node.js-инструменты.

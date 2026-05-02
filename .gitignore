@@ -12,11 +12,11 @@ dist/
 wheels/
 pip-wheel-metadata/
 
-# Virtualenvs
+# Virtualenvs (uv creates .venv/)
 .venv/
 venv/
 env/
-.python-version
+# .python-version is tracked — pins the Python version for uv
 
 # Testing & coverage
 .pytest_cache/
