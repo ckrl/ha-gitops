@@ -19,11 +19,15 @@ jobs:
   hacs:
     name: HACS validation
     runs-on: ubuntu-latest
+    # HACS reads files through the GitHub API, which returns nothing for
+    # private repositories. Run this job only once the repo is public.
+    if: github.event.repository.visibility == 'public'
     steps:
       - uses: actions/checkout@v4
       - uses: hacs/action@main
         with:
           category: integration
+          ignore: brands
 
   lint:
     name: Lint & format
