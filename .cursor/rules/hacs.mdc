@@ -6,7 +6,7 @@ alwaysApply: false
 
 # HACS Rules
 
-См. спеку §5.2–5.3 и §11.
+См. `docs/architecture.md` §5.2–5.3 и §12.
 
 ## manifest.json (`custom_components/ha_gitops/manifest.json`)
 

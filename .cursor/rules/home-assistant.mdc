@@ -14,7 +14,7 @@ alwaysApply: false
 - MVP: конфиг через `configuration.yaml` → `async_setup(hass, config)`. Release: `async_setup_entry(hass, entry)` + `config_flow.py`.
 - Состояние интеграции — в `hass.data[DOMAIN]`. Хранить там единственный экземпляр `GitManager` и список разворачиваемых entity-ID.
 - Регистрация платформ через `await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "button"])` (Release) либо через `discovery.async_load_platform(...)` (MVP YAML-only).
-- `manifest.json` — поля строго по спеке §5.2: `domain`, `name`, `version`, `documentation`, `issue_tracker`, `requirements`, `dependencies`, `codeowners`, `iot_class: "local_push"`, `config_flow` (`false` MVP / `true` Release).
+- `manifest.json` — поля строго по `docs/architecture.md` §5.2: `domain`, `name`, `version`, `documentation`, `issue_tracker`, `requirements`, `dependencies`, `codeowners`, `iot_class: "local_push"`, `config_flow` (`false` MVP / `true` Release).
 
 ## Async-контракт
 
@@ -23,7 +23,7 @@ alwaysApply: false
 - Запрещены: `time.sleep`, `subprocess.run`, `requests`, `os.system`, чтение/запись файлов через `open()` без executor.
 - Polling сенсора: `SCAN_INTERVAL = timedelta(seconds=...)` берётся из конфига (`scan_interval`, дефолт 300). Сенсор реализует `async_update`, не `update`.
 
-## GitManager — публичный контракт (см. спеку §8)
+## GitManager — публичный контракт (см. `docs/architecture.md` §8)
 
 ```python
 class GitManager:
@@ -46,7 +46,7 @@ class GitManager:
 
 ## Логика операций
 
-- **Push** — единое атомарное действие: `git add` (только yaml через `_get_yaml_files`) → проверка staged → `git commit` (если diff) → `git push`. Если ничего не staged, но есть unpushed — только `git push`. Если ничего нет — no-op + `SyncStatus.CLEAN`. См. спеку §7.1.
+- **Push** — единое атомарное действие: `git add` (только yaml через `_get_yaml_files`) → проверка staged → `git commit` (если diff) → `git push`. Если ничего не staged, но есть unpushed — только `git push`. Если ничего нет — no-op + `SyncStatus.CLEAN`. См. `docs/architecture.md` §7.1.
 - **Pull** — только `git fetch` + `git merge --ff-only origin/<branch>`. Никаких `--rebase`, `--no-ff`, `reset --hard` без явного флага в Release.
 - **Status** — алгоритм из §8.1: `fetch` → `git status --porcelain` → `rev-parse HEAD` vs `origin/<branch>` → `merge-base`. Реализовать ровно так.
 - Commit message — формат из §8.3 (`_build_commit_message`). Co-authored-by trailer обязателен. Author/email — через `git -c user.name=... -c user.email=...`, НЕ глобальный `git config`.
@@ -84,4 +84,4 @@ class GitManager:
 
 - НЕ использовать `hass.async_create_task` для git-операций без обработки исключений — они проглатываются.
 - НЕ вызывать `hass.async_block_till_done()` в продакшен-коде (только в тестах).
-- НЕ делать reload интеграции автоматически при изменениях файлов в Pull — только нотификация (см. спеку §15, открытый вопрос 1).
+- НЕ делать reload интеграции автоматически при изменениях файлов в Pull — только нотификация (см. `docs/architecture.md` §12, пункт 6: автоперезагрузка остаётся opt-in).

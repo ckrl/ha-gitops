@@ -6,7 +6,7 @@ alwaysApply: true
 
 # Security Rules (CRITICAL)
 
-Несоблюдение этих правил = баг безопасности. См. спеку §10.
+Несоблюдение этих правил = баг безопасности. См. `docs/architecture.md` §10.
 
 ## secrets.yaml — двойная защита, всегда
 

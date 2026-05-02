@@ -18,7 +18,7 @@ from custom_components.ha_gitops.git_manager import (
 from .conftest import _git, make_local_commit, push_remote_commit
 
 # ---------------------------------------------------------------------------
-# _build_commit_message — spec §8.3
+# _build_commit_message — docs/architecture.md §8.3
 # ---------------------------------------------------------------------------
 
 

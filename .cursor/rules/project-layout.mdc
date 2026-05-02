@@ -6,7 +6,7 @@ alwaysApply: true
 
 # Project Layout (keep this shape)
 
-Опорная схема — раздел 5.1 спеки `docs/ha-gitops-proj-spec.md`. Не меняй без обновления спеки.
+Опорная схема — `docs/architecture.md` §5.1. Не меняй без обновления документа.
 
 ```
 ha-gitops/
@@ -29,7 +29,7 @@ ha-gitops/
 │   ├── test_git_manager.py      # unit + integration тесты GitManager
 │   ├── test_sensor.py
 │   └── test_button.py
-├── docs/                        # ТЗ и доп. документация
+├── docs/                        # architecture.md — design of record
 ├── hacs.json                    # HACS metadata (см. hacs.mdc)
 ├── README.md                    # установка, configuration.yaml пример, prerequisites
 ├── LICENSE                      # MIT
@@ -43,7 +43,7 @@ ha-gitops/
 
 - `__init__.py` — bootstrap: чтение конфига (YAML или ConfigEntry), создание `GitManager`, форвард на платформы `sensor`/`button`. Никакой git-логики.
 - `const.py` — все литералы: `DOMAIN = "ha_gitops"`, `CONF_REPO_URL`, `CONF_BRANCH`, `CONF_SSH_KEY_PATH`, `CONF_GIT_AUTHOR_NAME`, `CONF_GIT_AUTHOR_EMAIL`, `CONF_SCAN_INTERVAL`, значения `SyncStatus`, дефолтный `.gitignore`-блок.
-- `git_manager.py` — публичный API: `initialize`, `push`, `pull`, `fetch`, `commit`, `get_status`, `get_local_commit`, `get_remote_commit`, `get_changed_files`, `generate_ssh_key`, `test_connection`. См. спеку §8 и `home-assistant.mdc`.
+- `git_manager.py` — публичный API: `initialize`, `push`, `pull`, `fetch`, `commit`, `get_status`, `get_local_commit`, `get_remote_commit`, `get_changed_files`, `generate_ssh_key`, `test_connection`. См. `docs/architecture.md` §8 и `home-assistant.mdc`.
 - `sensor.py` / `button.py` — только entity-обёртки; делегируют в `GitManager`. Никаких прямых вызовов `git`.
 - `tests/` — `conftest.py` создаёт временный bare-repo и working tree, чтобы тесты `GitManager` не мокали git целиком.
 

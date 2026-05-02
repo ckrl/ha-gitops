@@ -1,8 +1,8 @@
 """Git-backend for ha_gitops.
 
-Public API matches docs/ha-gitops-proj-spec.md §8. Implementation runs the
-`git` CLI through `asyncio.create_subprocess_exec` so the HA event loop is
-never blocked.
+Public API is the GitManager contract described in
+`docs/architecture.md` §8. Implementation runs the `git` CLI through
+`asyncio.create_subprocess_exec` so the HA event loop is never blocked.
 """
 
 from __future__ import annotations
@@ -82,10 +82,10 @@ class CommitInfo:
 class GitManager:
     """Single entry point for every git interaction performed by the integration.
 
-    The public API is stable; see docs/ha-gitops-proj-spec.md §8. Internal
-    helpers (_run_git, _build_ssh_env, _get_yaml_files, _build_commit_message)
-    may evolve freely — including a future migration from subprocess to
-    GitPython.
+    The public API is stable and tracked by `docs/architecture.md` §8.
+    Internal helpers (_run_git, _build_ssh_env, _get_yaml_files,
+    _build_commit_message) may evolve freely — including a future
+    migration from subprocess to GitPython.
     """
 
     def __init__(
@@ -156,11 +156,11 @@ class GitManager:
     async def push(self) -> GitResult:
         """Stage YAML files (secrets-guarded), commit if there are changes, push.
 
-        Per spec §7.1, this is a single atomic action from the user's
-        perspective: it commits any pending YAML edits and pushes; if there
-        is nothing to commit but a previous local commit failed to reach the
-        remote, it pushes that commit; if there is genuinely nothing to do,
-        it returns a clean no-op.
+        Per `docs/architecture.md` §7.1, this is a single atomic action
+        from the user's perspective: it commits any pending YAML edits and
+        pushes; if there is nothing to commit but a previous local commit
+        failed to reach the remote, it pushes that commit; if there is
+        genuinely nothing to do, it returns a clean no-op.
         """
         await self._require_initialized()
 
@@ -254,7 +254,7 @@ class GitManager:
         )
 
     async def get_status(self) -> SyncStatus:
-        """Return current sync status per spec §8.1.
+        """Return current sync status per `docs/architecture.md` §8.2.
 
         Performs a soft `git fetch origin` first (network errors are downgraded
         to a WARNING), then reasons about local vs remote tips using
@@ -377,10 +377,11 @@ class GitManager:
     async def _stage_yaml_files(self) -> list[FileChange]:
         """Stage root-level YAML files (excluding secrets) and return staged FileChanges.
 
-        Performs the secrets panic guard from spec §10 / security.mdc: if any
-        secrets-like file ends up staged (e.g. user removed it from
-        .gitignore and force-added it), it is unstaged and GitError is
-        raised so the push/commit aborts loud and clear.
+        Performs the secrets panic guard from `docs/architecture.md`
+        §10.1 / security.mdc: if any secrets-like file ends up staged
+        (e.g. user removed it from .gitignore and force-added it), it is
+        unstaged and GitError is raised so the push/commit aborts loud
+        and clear.
         """
         yaml_files = self._get_yaml_files()
         if yaml_files:
@@ -494,7 +495,7 @@ class GitManager:
         )
 
     def _build_commit_message(self, changed_files: list[FileChange]) -> str:
-        """Build the adaptive commit subject + body per spec §8.3."""
+        """Build the adaptive commit subject + body per `docs/architecture.md` §8.3."""
         names = [f.name for f in changed_files]
         if len(names) == 1:
             subject = f"Update: {names[0]}"
