@@ -55,4 +55,4 @@ jobs:
           git config --global user.name "CI"
           git config --global init.defaultBranch main
       - run: uv sync --python ${{ matrix.python-version }} --extra dev
-      - run: uv run pytest -v --cov=custom_components/ha_gitops --cov-report=term-missing
+      - run: uv run --python ${{ matrix.python-version }} pytest -v --cov=custom_components/ha_gitops --cov-report=term-missing

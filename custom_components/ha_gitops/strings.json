@@ -1,6 +1,5 @@
 {
   "title": "HA GitOps",
-  "config": {},
   "entity": {
     "sensor": {
       "sync_status": {

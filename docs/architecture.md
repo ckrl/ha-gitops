@@ -232,9 +232,9 @@ ha_gitops:
   repo_url: "git@github.com:username/ha-config.git"
   branch: "main"
   ssh_key_path: "/config/.ha_gitops/id_ed25519" # optional
-  git_author_name: "Home Assistant"             # optional
-  git_author_email: "homeassistant@local"       # optional
-  scan_interval: 300                            # seconds between status fetches
+  git_author_name: "Home Assistant" # optional
+  git_author_email: "homeassistant@local" # optional
+  scan_interval: 300 # seconds between status fetches
 ```
 
 Release adds a UI Config Flow that drives the same options plus an
@@ -280,15 +280,15 @@ Refreshes remote tracking refs without modifying the working tree.
 
 ### 7.2 Status sensor — `sensor.ha_gitops_status`
 
-| State      | Condition                                              |
-| ---------- | ------------------------------------------------------ |
-| `clean`    | Local HEAD equals remote HEAD; no working changes      |
-| `modified` | Uncommitted or untracked YAML changes present          |
-| `ahead`    | Local commits not yet pushed                           |
-| `behind`   | Remote commits not yet pulled                          |
-| `diverged` | Histories diverged — manual action required           |
-| `error`    | Last operation failed                                  |
-| `unknown`  | Repository not initialized or remote unreachable       |
+| State      | Condition                                         |
+| ---------- | ------------------------------------------------- |
+| `clean`    | Local HEAD equals remote HEAD; no working changes |
+| `modified` | Uncommitted or untracked YAML changes present     |
+| `ahead`    | Local commits not yet pushed                      |
+| `behind`   | Remote commits not yet pulled                     |
+| `diverged` | Histories diverged — manual action required       |
+| `error`    | Last operation failed                             |
+| `unknown`  | Repository not initialized or remote unreachable  |
 
 Attributes: `last_operation`, `last_operation_time` (ISO),
 `last_error`, `local_commit` (short hash), `remote_commit`.
@@ -395,17 +395,17 @@ global `git config` is never touched.
 
 ## 9. Edge cases
 
-| Scenario                              | Behaviour                                                       |
-| ------------------------------------- | --------------------------------------------------------------- |
-| `git` binary missing                  | Setup fails with a clear error, HA not affected                 |
-| Remote unreachable                    | Status `error`, retried on the next scan interval               |
-| Conflict during pull                  | Status `diverged`, no merge applied, notification               |
-| Push rejected (remote ahead)          | Error rewritten to "Pull first.", notification                  |
-| SSH key missing or invalid            | Setup error with remediation hint                               |
-| Empty commit (nothing to push)        | No-op, status stays `clean`                                     |
-| HA restart mid-operation              | Operation aborts, status refreshes on the next scan             |
-| User deleted the `.gitignore` block   | Block recreated on the next operation, warning logged           |
-| `secrets.yaml` ends up staged         | Panic guard: unstage, abort, error notification (see §10.1)     |
+| Scenario                            | Behaviour                                                   |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `git` binary missing                | Setup fails with a clear error, HA not affected             |
+| Remote unreachable                  | Status `error`, retried on the next scan interval           |
+| Conflict during pull                | Status `diverged`, no merge applied, notification           |
+| Push rejected (remote ahead)        | Error rewritten to "Pull first.", notification              |
+| SSH key missing or invalid          | Setup error with remediation hint                           |
+| Empty commit (nothing to push)      | No-op, status stays `clean`                                 |
+| HA restart mid-operation            | Operation aborts, status refreshes on the next scan         |
+| User deleted the `.gitignore` block | Block recreated on the next operation, warning logged       |
+| `secrets.yaml` ends up staged       | Panic guard: unstage, abort, error notification (see §10.1) |
 
 ---
 
@@ -452,12 +452,12 @@ There is no flag to opt secrets in. Ever.
 
 ## 11. Compatibility
 
-| Environment                | git available?           |
-| -------------------------- | ------------------------ |
-| HA OS (HassOS)             | yes                      |
-| HA Supervised              | yes                      |
-| HA Container (Docker)      | depends on the image — documented in README           |
-| HA Core (venv)             | depends on host          |
+| Environment           | git available?                              |
+| --------------------- | ------------------------------------------- |
+| HA OS (HassOS)        | yes                                         |
+| HA Supervised         | yes                                         |
+| HA Container (Docker) | depends on the image — documented in README |
+| HA Core (venv)        | depends on host                             |
 
 Required Python: **3.11+**. Required HA: **2024.1+**.
 

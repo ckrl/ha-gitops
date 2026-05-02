@@ -1,7 +1,4 @@
 {
   "name": "HA GitOps",
-  "filename": "ha_gitops.zip",
-  "content_in_root": false,
-  "hide_default_branch": false,
   "homeassistant": "2024.1.0"
 }
