@@ -253,12 +253,12 @@ Only **one** config entry is allowed (single `/config` working tree).
 
 The first-run form (`config_flow.py` + `strings.json`) collects:
 
-| Key / UI field | Purpose |
-| -------------- | ------- |
-| `repo_url` | SSH remote, e.g. `git@github.com:owner/ha-config.git` |
-| `branch` | Remote branch (default `main`) |
-| `git_author_name` / `git_author_email` | Commit metadata; passed via per-call `git -c user.name/email=…` |
-| `ssh_key_path` | Private ED25519 key path; **empty** uses `/config/.ha_gitops/id_ed25519` |
+| Key / UI field                         | Purpose                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------ |
+| `repo_url`                             | SSH remote, e.g. `git@github.com:owner/ha-config.git`                    |
+| `branch`                               | Remote branch (default `main`)                                           |
+| `git_author_name` / `git_author_email` | Commit metadata; passed via per-call `git -c user.name/email=…`          |
+| `ssh_key_path`                         | Private ED25519 key path; **empty** uses `/config/.ha_gitops/id_ed25519` |
 
 During the final step the flow runs `GitManager.initialize()` against the live
 `/config` tree. Failures surface as form errors; successful completion creates
