@@ -23,7 +23,7 @@ alwaysApply: false
   "dependencies": [],
   "codeowners": ["@<owner>"],
   "iot_class": "local_push",
-  "config_flow": false
+  "config_flow": true
 }
 ```
 
@@ -33,7 +33,7 @@ alwaysApply: false
 - `version` — semver (`MAJOR.MINOR.PATCH`). Поднимать в каждом релизе. Должен совпадать с git-тегом (`vX.Y.Z`).
 - `requirements` — пусто в MVP (зависимость на `git` binary не Python). В Release добавить `"GitPython>=3.1"` (точное имя пакета на PyPI).
 - `iot_class` = `local_push` (не менять без обоснования; см. HA dev docs).
-- `config_flow` = `false` для MVP, `true` при добавлении `config_flow.py` (Release).
+- `config_flow` = `true` (MVP: UI Config Flow в `config_flow.py`).
 - `codeowners` — массив GH-handles с `@`.
 
 ## hacs.json (в корне репо)

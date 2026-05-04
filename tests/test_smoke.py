@@ -26,6 +26,7 @@ def test_manifest_domain_matches_const() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert manifest["domain"] == DOMAIN
     assert manifest["iot_class"] == "local_push"
+    assert manifest.get("config_flow") is True
 
 
 def test_gitignore_template_includes_marker_and_secrets() -> None:

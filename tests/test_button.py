@@ -14,8 +14,14 @@ from unittest.mock import AsyncMock, MagicMock
 from homeassistant.const import EntityCategory
 
 from custom_components.ha_gitops.button import HaGitopsPullButton, HaGitopsPushButton
-from custom_components.ha_gitops.const import DOMAIN
 from custom_components.ha_gitops.git_manager import GitError, GitResult
+
+
+def _mock_config_entry(entry_id: str = "test_entry_id") -> MagicMock:
+    entry = MagicMock()
+    entry.entry_id = entry_id
+    entry.title = "HA GitOps"
+    return entry
 
 
 def _make_hass() -> MagicMock:
@@ -42,8 +48,9 @@ def _last_notification(hass: MagicMock) -> dict[str, str]:
 
 async def test_pull_button_metadata() -> None:
     hass = _make_hass()
-    btn = HaGitopsPullButton(hass, MagicMock())
-    assert btn.unique_id == f"{DOMAIN}_pull"
+    entry = _mock_config_entry("e_pull")
+    btn = HaGitopsPullButton(hass, entry, MagicMock())
+    assert btn.unique_id == "e_pull_pull"
     assert btn.name == "Pull"
     assert btn.icon == "mdi:cloud-download-outline"
     assert btn.entity_category is EntityCategory.CONFIG
@@ -51,27 +58,30 @@ async def test_pull_button_metadata() -> None:
 
 async def test_pull_button_invokes_manager_pull() -> None:
     hass = _make_hass()
+    entry = _mock_config_entry()
     manager = MagicMock()
     manager.pull = AsyncMock(
         return_value=GitResult(ok=True, message="up to date", changed_files=())
     )
-    await HaGitopsPullButton(hass, manager).async_press()
+    await HaGitopsPullButton(hass, entry, manager).async_press()
     manager.pull.assert_awaited_once()
 
 
 async def test_pull_button_silent_when_no_changes() -> None:
     """Successful pull with no changed files must not spam notifications."""
     hass = _make_hass()
+    entry = _mock_config_entry()
     manager = MagicMock()
     manager.pull = AsyncMock(
         return_value=GitResult(ok=True, message="up to date", changed_files=())
     )
-    await HaGitopsPullButton(hass, manager).async_press()
+    await HaGitopsPullButton(hass, entry, manager).async_press()
     hass.services.async_call.assert_not_called()
 
 
 async def test_pull_button_notifies_on_changed_files() -> None:
     hass = _make_hass()
+    entry = _mock_config_entry("e1")
     manager = MagicMock()
     manager.pull = AsyncMock(
         return_value=GitResult(
@@ -80,18 +90,19 @@ async def test_pull_button_notifies_on_changed_files() -> None:
             changed_files=("automations.yaml", "scripts.yaml"),
         )
     )
-    await HaGitopsPullButton(hass, manager).async_press()
+    await HaGitopsPullButton(hass, entry, manager).async_press()
     payload = _last_notification(hass)
     assert "config updated" in payload["title"].lower()
     assert "reload" in payload["message"].lower()
-    assert payload["notification_id"] == f"{DOMAIN}_pull"
+    assert payload["notification_id"] == "e1_pull"
 
 
 async def test_pull_button_notifies_on_git_error() -> None:
     hass = _make_hass()
+    entry = _mock_config_entry()
     manager = MagicMock()
     manager.pull = AsyncMock(side_effect=GitError("Pull first."))
-    await HaGitopsPullButton(hass, manager).async_press()
+    await HaGitopsPullButton(hass, entry, manager).async_press()
     payload = _last_notification(hass)
     assert "pull failed" in payload["title"].lower()
     assert "Pull first." in payload["message"]
@@ -104,9 +115,10 @@ async def test_pull_button_does_not_swallow_non_git_exceptions() -> None:
     a programming bug and should crash loudly during development.
     """
     hass = _make_hass()
+    entry = _mock_config_entry()
     manager = MagicMock()
     manager.pull = AsyncMock(side_effect=RuntimeError("logic bug"))
-    btn = HaGitopsPullButton(hass, manager)
+    btn = HaGitopsPullButton(hass, entry, manager)
     try:
         await btn.async_press()
     except RuntimeError as exc:
@@ -122,8 +134,9 @@ async def test_pull_button_does_not_swallow_non_git_exceptions() -> None:
 
 async def test_push_button_metadata() -> None:
     hass = _make_hass()
-    btn = HaGitopsPushButton(hass, MagicMock())
-    assert btn.unique_id == f"{DOMAIN}_push"
+    entry = _mock_config_entry("e_push")
+    btn = HaGitopsPushButton(hass, entry, MagicMock())
+    assert btn.unique_id == "e_push_push"
     assert btn.name == "Push"
     assert btn.icon == "mdi:cloud-upload-outline"
     assert btn.entity_category is EntityCategory.CONFIG
@@ -131,19 +144,21 @@ async def test_push_button_metadata() -> None:
 
 async def test_push_button_invokes_manager_push() -> None:
     hass = _make_hass()
+    entry = _mock_config_entry()
     manager = MagicMock()
     manager.push = AsyncMock(return_value=GitResult(ok=True, message="pushed", changed_files=()))
-    await HaGitopsPushButton(hass, manager).async_press()
+    await HaGitopsPushButton(hass, entry, manager).async_press()
     manager.push.assert_awaited_once()
     hass.services.async_call.assert_not_called()
 
 
 async def test_push_button_notifies_on_git_error() -> None:
     hass = _make_hass()
+    entry = _mock_config_entry("e2")
     manager = MagicMock()
     manager.push = AsyncMock(side_effect=GitError("push rejected: remote ahead"))
-    await HaGitopsPushButton(hass, manager).async_press()
+    await HaGitopsPushButton(hass, entry, manager).async_press()
     payload = _last_notification(hass)
     assert "push failed" in payload["title"].lower()
     assert "remote ahead" in payload["message"]
-    assert payload["notification_id"] == f"{DOMAIN}_push"
+    assert payload["notification_id"] == "e2_push"

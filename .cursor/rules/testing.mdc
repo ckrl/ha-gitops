@@ -49,7 +49,7 @@ alwaysApply: false
 
 `__init__.py`:
 
-- `async_setup` с минимальным YAML-конфигом регистрирует домен и платформы.
+- `MockConfigEntry` + `async_setup_entry` регистрируют `GitManager` и платформы (см. `tests/test_setup.py`).
 - Отсутствие `git` binary → понятная ошибка setup, HA не падает.
 
 ## Конвенции

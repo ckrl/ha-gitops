@@ -1,5 +1,27 @@
 {
   "title": "HA GitOps",
+  "config": {
+    "step": {
+      "user": {
+        "title": "HA GitOps",
+        "description": "Link this Home Assistant configuration directory (/config) to a Git remote using SSH. A deploy key with access to the repository must already exist at the SSH path (or use the default under .ha_gitops/).",
+        "data": {
+          "repo_url": "Git remote URL (SSH, e.g. git@github.com:owner/repo.git)",
+          "branch": "Branch name",
+          "git_author_name": "Git commit author name",
+          "git_author_email": "Git commit author email",
+          "ssh_key_path": "Path to private SSH key (leave empty for /config/.ha_gitops/id_ed25519)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "HA GitOps is already configured. Only one instance is supported."
+    },
+    "error": {
+      "git_error": "Could not initialize the Git repository. Check the URL, branch, SSH key path, and Home Assistant logs.",
+      "unknown": "Unexpected error. Check the logs."
+    }
+  },
   "entity": {
     "sensor": {
       "sync_status": {

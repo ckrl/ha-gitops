@@ -18,18 +18,27 @@ from custom_components.ha_gitops.const import DEFAULT_SCAN_INTERVAL, DOMAIN, Syn
 from custom_components.ha_gitops.sensor import HaGitopsStatusSensor
 
 
+def _mock_config_entry(entry_id: str = "test_entry_id") -> MagicMock:
+    entry = MagicMock()
+    entry.entry_id = entry_id
+    entry.title = "HA GitOps"
+    return entry
+
+
 def _make_sensor(
     *,
     status: SyncStatus = SyncStatus.CLEAN,
     raises: Exception | None = None,
     scan_interval: int = DEFAULT_SCAN_INTERVAL,
+    entry_id: str = "test_entry_id",
 ) -> tuple[HaGitopsStatusSensor, MagicMock]:
     manager = MagicMock()
     if raises is not None:
         manager.get_status = AsyncMock(side_effect=raises)
     else:
         manager.get_status = AsyncMock(return_value=status)
-    return HaGitopsStatusSensor(manager, scan_interval), manager
+    entry = _mock_config_entry(entry_id)
+    return HaGitopsStatusSensor(entry, manager, scan_interval), manager
 
 
 async def test_sensor_initial_state_is_unknown() -> None:
@@ -38,12 +47,14 @@ async def test_sensor_initial_state_is_unknown() -> None:
 
 
 async def test_sensor_metadata_matches_spec() -> None:
-    sensor, _ = _make_sensor()
-    assert sensor.unique_id == f"{DOMAIN}_status"
+    sensor, _ = _make_sensor(entry_id="e1")
+    assert sensor.unique_id == "e1_sync_status"
     assert sensor.name == "Sync status"
     assert sensor.entity_category is EntityCategory.DIAGNOSTIC
     assert sensor.icon == "mdi:source-branch"
     assert sensor.scan_interval == timedelta(seconds=DEFAULT_SCAN_INTERVAL)
+    assert sensor.device_info is not None
+    assert (DOMAIN, "e1") in sensor.device_info["identifiers"]
 
 
 async def test_sensor_updates_to_clean_after_async_update() -> None:

@@ -177,7 +177,7 @@ ha-gitops/
 │       ├── git_manager.py       # GitManager — single git entry point
 │       ├── sensor.py            # SensorEntity: ha_gitops_status
 │       ├── button.py            # ButtonEntity: pull, push
-│       ├── config_flow.py       # UI Config Flow (Release)
+│       ├── config_flow.py       # UI Config Flow (MVP)
 │       ├── services.yaml        # service descriptors
 │       ├── strings.json         # UI strings (en)
 │       └── translations/        # localized strings
@@ -212,13 +212,14 @@ Required fields:
   "dependencies": [],
   "codeowners": ["@<owner>"],
   "iot_class": "local_push",
-  "config_flow": false
+  "config_flow": true
 }
 ```
 
 `requirements` is empty in the MVP — the integration depends on the
-`git` binary, which is not a Python dependency. Release adds
-`"GitPython>=3.1"` and flips `config_flow` to `true`.
+`git` binary, which is not a Python dependency. `config_flow` is **true** so
+onboarding runs through the UI (see §6). Release adds `"GitPython>=3.1"` behind
+the same `GitManager` API.
 
 ### 5.3 hacs.json
 
@@ -234,21 +235,34 @@ Required fields:
 
 ---
 
-## 6. Configuration (YAML, MVP)
+## 6. Configuration
 
-```yaml
-# configuration.yaml
-ha_gitops:
-  repo_url: "git@github.com:username/ha-config.git"
-  branch: "main"
-  ssh_key_path: "/config/.ha_gitops/id_ed25519" # optional
-  git_author_name: "Home Assistant" # optional
-  git_author_email: "homeassistant@local" # optional
-  scan_interval: 300 # seconds between status fetches
-```
+### 6.0 Config Flow (MVP)
 
-Release adds a UI Config Flow that drives the same options plus an
-SSH key generator and a "Test connection" step.
+Onboarding is **Settings → Devices & services → Add integration → HA GitOps**.
+Only **one** config entry is allowed (single `/config` working tree).
+
+The first-run form (`config_flow.py` + `strings.json`) collects:
+
+| Key / UI field | Purpose |
+| -------------- | ------- |
+| `repo_url` | SSH remote, e.g. `git@github.com:owner/ha-config.git` |
+| `branch` | Remote branch (default `main`) |
+| `git_author_name` / `git_author_email` | Commit metadata; passed via per-call `git -c user.name/email=…` |
+| `ssh_key_path` | Private ED25519 key path; **empty** uses `/config/.ha_gitops/id_ed25519` |
+
+During the final step the flow runs `GitManager.initialize()` against the live
+`/config` tree. Failures surface as form errors; successful completion creates
+the config entry and loads `sensor` + `button` platforms.
+
+`scan_interval` is stored on the entry with default **300** seconds (options
+flow / UI tuning is Release scope).
+
+Entities share one **device registry** entry (`DeviceEntryType.SERVICE`) so
+Pull, Push, and Sync status appear together on the integration device page.
+
+**Release** adds an SSH key generator, explicit “Test connection”, HTTPS auth,
+and an options flow for advanced tuning.
 
 ### 6.1 Greenfield vs brownfield
 
@@ -553,10 +567,12 @@ Required Python: **3.11+**. Required HA: **2024.1+**.
 
 ## 12. Release roadmap (high-level)
 
-The MVP ships with the YAML-only configuration and the operations
-above. The first stable release adds, in order of priority:
+The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
+entities, and the git operations above. The first stable release adds, in order
+of priority:
 
-1. UI Config Flow with SSH key generation and a "Test connection" step.
+1. SSH key generation in the flow, explicit “Test connection”, and an options
+   flow for `scan_interval` and related tuning.
 2. Backend migration from subprocess to GitPython behind the same API.
 3. Additional sensors: `local_commit`, `remote_commit`,
    `changed_files`, `last_sync`.

@@ -7,6 +7,9 @@ from typing import Final
 
 DOMAIN: Final = "ha_gitops"
 
+# Shown on the device card (DeviceInfo.configuration_url); keep in sync with manifest.json.
+DOCUMENTATION_URL: Final = "https://github.com/ckrl/ha-gitops"
+
 CONF_REPO_URL: Final = "repo_url"
 CONF_BRANCH: Final = "branch"
 CONF_SSH_KEY_PATH: Final = "ssh_key_path"
