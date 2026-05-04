@@ -18,6 +18,7 @@ ha-gitops/
 │       ├── git_manager.py       # ВСЯ git-логика; класс GitManager — единственная точка вызовов git
 │       ├── sensor.py            # SensorEntity: ha_gitops_status (+ extra в Release)
 │       ├── button.py            # ButtonEntity: pull, fetch, push
+│       ├── repairs.py           # RepairsFlow (issue_registry fix)
 │       ├── config_flow.py       # UI Config Flow (MVP)
 │       ├── services.yaml        # описание сервисов
 │       ├── strings.json         # UI-строки (en по умолчанию)
@@ -32,6 +33,7 @@ ha-gitops/
 │   ├── test_button.py
 │   ├── test_config_flow.py
 │   ├── test_service.py
+│   ├── test_repairs.py
 │   └── test_setup.py
 ├── docs/                        # architecture.md — design of record
 ├── hacs.json                    # HACS metadata (см. hacs.mdc)

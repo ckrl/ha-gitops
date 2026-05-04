@@ -186,6 +186,7 @@ ha-gitops/
 │       ├── git_manager.py       # GitManager — single git entry point
 │       ├── sensor.py            # SensorEntity: ha_gitops_status
 │       ├── button.py            # ButtonEntity: pull, fetch, push
+│       ├── repairs.py           # RepairsFlow: fix reload after pull (issue_registry)
 │       ├── config_flow.py       # UI Config Flow (MVP)
 │       ├── services.yaml        # service descriptors
 │       ├── strings.json         # UI strings (en)
@@ -367,12 +368,16 @@ possible conflict resolution in YAML.
 #### `button.ha_gitops_pull`
 
 - **Action**: `git fetch` + `git merge --ff-only origin/<branch>`.
-- **Success with changes**: status sensor refreshed, persistent
-  notification "Config updated; reload Home Assistant to apply".
-- **Reload policy**: **MVP** — never auto-reload or auto-restart Home Assistant;
-  the user is notified only. **Release** — optional opt-in to perform an automatic
-  safe reload (exact mechanism TBD: e.g. `homeassistant.reload_core_config` and/or
-  full restart), default remains notify-only.
+- **Success with changes**: status sensor refreshed; **persistent notification**
+  with a Markdown link to My Home Assistant →
+  `homeassistant.reload_core_config`, plus a truncated list of changed paths; an
+  **`issue_registry`** entry (`pulled_config_reload`, fixable) appears under
+  **Settings → System → Repairs** — the fix flow runs **`homeassistant.reload_core_config`**
+  on confirm (still no silent auto-restart).
+- **Reload policy**: **MVP** — no automatic full **restart** of Home Assistant;
+  reload of **core configuration** is offered only via the link and the optional
+  Repairs fix (user-initiated). **Release** — optional opt-in to **automatic**
+  reload/restart after pull in options; default remains manual.
 - **Conflict / diverged**: status `error`/`diverged`, notification with
   details, **no merge applied**.
 - **No changes**: status `clean`, silent success.
@@ -407,6 +412,13 @@ git diff --cached --quiet?
 - **Failure** (e.g. network, auth): `GitError` → persistent notification
   "HA GitOps: fetch failed" with a short message; status may show `error` on
   the next sensor update depending on `get_status()` outcome.
+
+#### `repairs.py` (integration platform)
+
+`async_create_fix_flow` dispatches issue `pulled_config_reload` to
+`PulledConfigReloadRepairFlow` (confirm → `homeassistant.reload_core_config`);
+other issue IDs fall back to the generic `ConfirmRepairFlow`. Strings live under
+`strings.json` → `issues.pulled_config_reload` (title, description, `fix_flow`).
 
 ### 7.2 Service `ha_gitops.commit`
 
@@ -614,15 +626,12 @@ small until the frontend cache refreshes.
 
 The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
 entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from v0.1.1 onward; **`button.ha_gitops_fetch`**
-(§7.1) from v0.1.3 onward. The first stable release continues with the following,
-**in this priority order** (highest first):
+(§7.1) from v0.1.3 onward; **post-pull Repairs + My link** (§7.1 Pull / `repairs.py`) from v0.1.5 onward.
+The first stable release continues with the following, **in this priority order** (highest first):
 
-1. After a non-empty pull: richer UX (e.g. notification action to open reload, or
-   repairs entry). **Automatic** `reload_core_config` / restart after pull remains
-   **Release-only** and **opt-in** in options (default: notify only, as in MVP).
-2. Additional sensors: `local_commit`, `remote_commit`, `changed_files`,
+1. Additional sensors: `local_commit`, `remote_commit`, `changed_files`,
    `last_sync`.
-3. SSH key generation in the flow, explicit “Test connection”, and extending the
-   options flow (e.g. auto-reload-after-pull opt-in, further tuning).
-4. Backend migration from subprocess to GitPython behind the same API.
-5. Localization: en + ru.
+2. SSH key generation in the flow, explicit “Test connection”, and extending the
+   options flow (e.g. **automatic** `reload_core_config` / restart after pull as **opt-in** only).
+3. Backend migration from subprocess to GitPython behind the same API.
+4. Localization: en + ru.

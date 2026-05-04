@@ -9,7 +9,7 @@ loading inside Home Assistant is exercised by tests/test_setup.py.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import EntityCategory
 
@@ -18,6 +18,7 @@ from custom_components.ha_gitops.button import (
     HaGitopsPullButton,
     HaGitopsPushButton,
 )
+from custom_components.ha_gitops.const import ISSUE_PULLED_CONFIG_RELOAD
 from custom_components.ha_gitops.git_manager import GitError, GitResult
 
 
@@ -94,11 +95,16 @@ async def test_pull_button_notifies_on_changed_files() -> None:
             changed_files=("automations.yaml", "scripts.yaml"),
         )
     )
-    await HaGitopsPullButton(hass, entry, manager).async_press()
+    with patch("custom_components.ha_gitops.button.ir.async_create_issue") as mock_issue:
+        await HaGitopsPullButton(hass, entry, manager).async_press()
     payload = _last_notification(hass)
     assert "config updated" in payload["title"].lower()
     assert "reload" in payload["message"].lower()
+    assert "my.home-assistant.io" in payload["message"]
     assert payload["notification_id"] == "e1_pull"
+    mock_issue.assert_called_once()
+    _call = mock_issue.call_args
+    assert _call.args[2] == ISSUE_PULLED_CONFIG_RELOAD
 
 
 async def test_pull_button_notifies_on_git_error() -> None:

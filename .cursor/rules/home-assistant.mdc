@@ -62,7 +62,7 @@ class GitManager:
 
 ### Button `ha_gitops_pull`, `ha_gitops_fetch`, `ha_gitops_push`
 
-- `async_press` — вызывает соответствующий метод `GitManager`, ловит `GitError`, шлёт `persistent_notification.create` при ошибке или при успешном pull с изменёнными файлами (см. `button.py`).
+- `async_press` — вызывает соответствующий метод `GitManager`, ловит `GitError`, шлёт `persistent_notification.create` при ошибке; при успешном **pull** с изменёнными файлами — уведомление с My Home Assistant-ссылкой на `reload_core_config` + запись **Repairs** (`repairs.py`, см. `button.py`).
 - `unique_id`: `f"{entry_id}_pull|fetch|push"`.
 
 ### Общее для entities
@@ -74,7 +74,7 @@ class GitManager:
 ## Notifications
 
 - При важных событиях звать `hass.services.async_call("persistent_notification", "create", {...})`:
-  - успешный `pull` с изменениями → "Config updated, HA reload recommended";
+  - успешный `pull` с изменениями → Markdown-ссылка на reload + **Repairs** (fix flow вызывает `homeassistant.reload_core_config` только по подтверждению пользователя);
   - `push rejected` → "Remote has new changes. Pull first.";
   - конфликт/diverged → инструкция, ручное вмешательство;
   - `secrets.yaml` обнаружен в staged → ERROR-нотификация (см. `security.mdc`).
@@ -84,4 +84,4 @@ class GitManager:
 
 - НЕ использовать `hass.async_create_task` для git-операций без обработки исключений — они проглатываются.
 - НЕ вызывать `hass.async_block_till_done()` в продакшен-коде (только в тестах).
-- НЕ делать reload интеграции автоматически при изменениях файлов в Pull — только нотификация (см. `docs/architecture.md` §12: автоперезагрузка остаётся opt-in).
+- НЕ выполнять `reload_core_config` / рестарт **молча** после Pull — только явные действия пользователя (ссылка, Repairs) и opt-in автоматизация в Release (см. `docs/architecture.md` §12).

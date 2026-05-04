@@ -54,6 +54,20 @@
       }
     }
   },
+  "issues": {
+    "pulled_config_reload": {
+      "title": "HA GitOps: configuration updated from Git",
+      "description": "A pull merged {count} changed file(s) into `/config`. Reload core configuration so YAML changes take effect.\n\nChanged: {files}",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reload core configuration?",
+            "description": "This runs the **homeassistant.reload_core_config** service (same as Developer tools → YAML → Reload configuration). Submit to apply and close this repair."
+          }
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "sync_status": {

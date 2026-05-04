@@ -10,6 +10,13 @@ DOMAIN: Final = "ha_gitops"
 # Shown on the device card (DeviceInfo.configuration_url); keep in sync with manifest.json.
 DOCUMENTATION_URL: Final = "https://github.com/ckrl/ha-gitops"
 
+# issue_registry / repairs (docs/architecture.md §7.1 Pull, §12)
+ISSUE_PULLED_CONFIG_RELOAD: Final = "pulled_config_reload"
+MY_RELOAD_CORE_CONFIG_REDIRECT: Final = (
+    "https://my.home-assistant.io/redirect/developer_call_service/"
+    "?service=homeassistant.reload_core_config"
+)
+
 CONF_REPO_URL: Final = "repo_url"
 CONF_BRANCH: Final = "branch"
 CONF_SSH_KEY_PATH: Final = "ssh_key_path"
