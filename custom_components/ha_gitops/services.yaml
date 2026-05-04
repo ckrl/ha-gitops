@@ -1,4 +1,15 @@
-# Services for ha_gitops.
-#
-# MVP: no public services (Pull / Push are exposed as button entities).
-# Release: ha_gitops.commit will be defined here per docs/architecture.md §12.
+# Services for ha_gitops — see docs/architecture.md §7.3 and §12.
+
+commit:
+  name: Commit
+  description: >-
+    Stage root-level *.yaml and .gitignore (same rules as Push; secrets never
+    staged) and create a local git commit without pushing. Optional message
+    becomes the full git commit message; if omitted, HA GitOps builds the
+    adaptive message per architecture §8.3.
+  fields:
+    message:
+      required: false
+      example: "Snapshot before theme experiments"
+      selector:
+        text:

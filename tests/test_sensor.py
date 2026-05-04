@@ -1,6 +1,6 @@
 """Unit tests for the ha_gitops sync-status sensor.
 
-Architecture: docs/architecture.md §6.2 (Status sensor) and §7.2 (states table).
+Architecture: docs/architecture.md §6.2 (Status sensor) and §7.3 (states table).
 
 These tests exercise the sensor entity in isolation with a MagicMock
 GitManager — fast, no HA event loop required. End-to-end registration

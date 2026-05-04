@@ -29,6 +29,10 @@ DATA_MANAGER: Final = "manager"
 DATA_SCAN_INTERVAL: Final = "scan_interval"
 DATA_LAST_RESULT: Final = "last_result"
 
+SERVICE_COMMIT: Final = "commit"
+ATTR_COMMIT_MESSAGE: Final = "message"
+MAX_COMMIT_MESSAGE_LENGTH: Final = 7200
+
 PLATFORMS: Final = ("sensor", "button")
 
 

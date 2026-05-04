@@ -42,6 +42,18 @@
       "unknown": "Unexpected error. Check the logs."
     }
   },
+  "services": {
+    "commit": {
+      "name": "Commit",
+      "description": "Stage allowed YAML and .gitignore, then create a local commit without pushing.",
+      "fields": {
+        "message": {
+          "name": "Commit message",
+          "description": "Optional full git commit message. Leave empty to use the adaptive HA GitOps template from changed files."
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "sync_status": {

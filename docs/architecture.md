@@ -395,7 +395,17 @@ git diff --cached --quiet?
 
 Refreshes remote tracking refs without modifying the working tree.
 
-### 7.2 Status sensor — `sensor.ha_gitops_status`
+### 7.2 Service `ha_gitops.commit`
+
+Registered when the config entry loads (`__init__.py`); removed on unload.
+Calls `GitManager.commit(message=...)`: same staging and secrets guard as Push
+(§8 / `_stage_yaml_files`), **no** `git push`. Optional service data field `message`
+(string, max 7200 chars): if omitted or whitespace-only, the adaptive subject/body
+from §8.3 is used; otherwise the supplied string is passed as the single
+`git commit -m` argument. On `GitError`, the service raises `HomeAssistantError`
+with a sanitized message for automations/UI.
+
+### 7.3 Status sensor — `sensor.ha_gitops_status`
 
 | State      | Condition                                         |
 | ---------- | ------------------------------------------------- |
@@ -585,18 +595,18 @@ Required Python: **3.11+**. Required HA: **2024.1+**.
 ## 12. Release roadmap (high-level)
 
 The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
-entities, and the git operations above. The first stable release adds the
-following, **in this priority order** (highest first):
+entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from
+v0.1.1 onward. The first stable release continues with the following, **in this
+priority order** (highest first):
 
-1. `ha_gitops.commit` service for manual commits with a custom message.
-2. `button.ha_gitops_fetch` — refresh remote tracking refs without merging the
-   working tree (see §7.1).
-3. After a non-empty pull: richer UX (e.g. notification action to open reload, or
+1. `button.ha_gitops_fetch` — refresh remote tracking refs without merging the
+   working tree (see §7.1 Buttons).
+2. After a non-empty pull: richer UX (e.g. notification action to open reload, or
    repairs entry). **Automatic** `reload_core_config` / restart after pull remains
    **Release-only** and **opt-in** in options (default: notify only, as in MVP).
-4. Additional sensors: `local_commit`, `remote_commit`, `changed_files`,
+3. Additional sensors: `local_commit`, `remote_commit`, `changed_files`,
    `last_sync`.
-5. SSH key generation in the flow, explicit “Test connection”, and extending the
+4. SSH key generation in the flow, explicit “Test connection”, and extending the
    options flow (e.g. auto-reload-after-pull opt-in, further tuning).
-6. Backend migration from subprocess to GitPython behind the same API.
-7. Localization: en + ru.
+5. Backend migration from subprocess to GitPython behind the same API.
+6. Localization: en + ru.

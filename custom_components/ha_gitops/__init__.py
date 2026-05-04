@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    ATTR_COMMIT_MESSAGE,
     CONF_BRANCH,
     CONF_GIT_AUTHOR_EMAIL,
     CONF_GIT_AUTHOR_NAME,
@@ -21,11 +24,22 @@ from .const import (
     DATA_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    MAX_COMMIT_MESSAGE_LENGTH,
     PLATFORMS,
+    SERVICE_COMMIT,
 )
 from .git_manager import GitError, GitManager
 
 _LOGGER = logging.getLogger(__name__)
+
+COMMIT_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_COMMIT_MESSAGE, default=""): vol.All(
+            cv.string,
+            vol.Length(max=MAX_COMMIT_MESSAGE_LENGTH),
+        ),
+    }
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -59,6 +73,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    async def async_handle_commit(call: ServiceCall) -> None:
+        """Stage root YAML (same rules as Push) and commit without pushing."""
+        runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        if not runtime:
+            raise HomeAssistantError("HA GitOps is not loaded for this config entry")
+
+        raw = call.data.get(ATTR_COMMIT_MESSAGE, "")
+        message: str | None = raw.strip() if isinstance(raw, str) else None
+        if message == "":
+            message = None
+
+        mgr: GitManager = runtime[DATA_MANAGER]
+        try:
+            await mgr.commit(message=message)
+        except GitError as exc:
+            _LOGGER.error("ha_gitops.commit service failed: %s", exc)
+            raise HomeAssistantError(str(exc)) from exc
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_COMMIT,
+        async_handle_commit,
+        schema=COMMIT_SERVICE_SCHEMA,
+    )
     return True
 
 
@@ -66,6 +105,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Tear down platforms and drop runtime state for this entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
+        hass.services.async_remove(DOMAIN, SERVICE_COMMIT)
         hass.data[DOMAIN].pop(entry.entry_id)
         if not hass.data[DOMAIN]:
             hass.data.pop(DOMAIN)

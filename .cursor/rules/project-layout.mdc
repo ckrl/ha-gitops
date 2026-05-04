@@ -12,7 +12,7 @@ alwaysApply: true
 ha-gitops/
 ├── custom_components/
 │   └── ha_gitops/
-│       ├── __init__.py          # async_setup / async_setup_entry / async_unload_entry
+│       ├── __init__.py          # async_setup / async_setup_entry (services) / async_unload_entry
 │       ├── manifest.json        # HACS manifest (domain, version, codeowners, iot_class)
 │       ├── const.py             # DOMAIN, CONF_*, дефолты, ключи статусов
 │       ├── git_manager.py       # ВСЯ git-логика; класс GitManager — единственная точка вызовов git
@@ -30,6 +30,7 @@ ha-gitops/
 │   ├── test_sensor.py
 │   ├── test_button.py
 │   ├── test_config_flow.py
+│   ├── test_service.py
 │   └── test_setup.py
 ├── docs/                        # architecture.md — design of record
 ├── hacs.json                    # HACS metadata (см. hacs.mdc)
