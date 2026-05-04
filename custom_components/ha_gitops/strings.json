@@ -64,6 +64,9 @@
       "pull": {
         "name": "Pull"
       },
+      "fetch": {
+        "name": "Fetch"
+      },
       "push": {
         "name": "Push"
       }

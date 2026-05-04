@@ -1,4 +1,4 @@
-"""Button platform for ha_gitops — Pull and Push actions."""
+"""Button platform for ha_gitops — Pull, Fetch, and Push actions."""
 
 from __future__ import annotations
 
@@ -23,11 +23,12 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Pull/Push buttons from a config entry."""
+    """Set up Pull / Fetch / Push buttons from a config entry."""
     manager: GitManager = hass.data[DOMAIN][entry.entry_id][DATA_MANAGER]
     async_add_entities(
         [
             HaGitopsPullButton(hass, entry, manager),
+            HaGitopsFetchButton(hass, entry, manager),
             HaGitopsPushButton(hass, entry, manager),
         ]
     )
@@ -85,6 +86,24 @@ class HaGitopsPullButton(_BaseGitopsButton):
                 "HA GitOps: config updated",
                 "Remote changes pulled. Reload Home Assistant to apply.",
             )
+
+
+class HaGitopsFetchButton(_BaseGitopsButton):
+    """Run `git fetch origin` only — updates remote refs; does not merge."""
+
+    _attr_name = "Fetch"
+    _attr_icon = "mdi:cloud-sync-outline"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, manager: GitManager) -> None:
+        super().__init__(hass, entry, manager)
+        self._attr_unique_id = f"{entry.entry_id}_fetch"
+
+    async def async_press(self) -> None:
+        try:
+            await self._manager.fetch()
+        except GitError as exc:
+            _LOGGER.error("ha_gitops fetch failed: %s", exc)
+            await self._notify("HA GitOps: fetch failed", str(exc))
 
 
 class HaGitopsPushButton(_BaseGitopsButton):

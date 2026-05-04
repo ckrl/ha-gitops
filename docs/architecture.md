@@ -149,7 +149,7 @@ __pycache__/
 ┌──────────────────────────────────────────────────────────┐
 │                    Home Assistant Core                   │
 │                                                          │
-│   button.ha_gitops_pull / push      sensor.ha_gitops_*   │
+│   button.ha_gitops_pull/fetch/push  sensor.ha_gitops_*  │
 │                       │                    │             │
 │                       └────────┬───────────┘             │
 │                                │                         │
@@ -185,7 +185,7 @@ ha-gitops/
 │       ├── const.py             # DOMAIN, CONF_*, defaults, SyncStatus
 │       ├── git_manager.py       # GitManager — single git entry point
 │       ├── sensor.py            # SensorEntity: ha_gitops_status
-│       ├── button.py            # ButtonEntity: pull, push
+│       ├── button.py            # ButtonEntity: pull, fetch, push
 │       ├── config_flow.py       # UI Config Flow (MVP)
 │       ├── services.yaml        # service descriptors
 │       ├── strings.json         # UI strings (en)
@@ -275,7 +275,7 @@ persists updates to `entry.data`, and `async_reload`s the config entry so
 `GitManager` and entity scan intervals pick up new values.
 
 Entities share one **device registry** entry (`DeviceEntryType.SERVICE`) so
-Pull, Push, and Sync status appear together on the integration device page.
+Pull, Fetch, Push, and Sync status appear together on the integration device page.
 
 **Release** adds an SSH key generator, explicit “Test connection”, and HTTPS auth.
 
@@ -393,9 +393,15 @@ git diff --cached --quiet?
   status `error`, notification.
 - **Network error**: status `error`, notification.
 
-#### `button.ha_gitops_fetch` (Release)
+#### `button.ha_gitops_fetch`
 
-Refreshes remote tracking refs without modifying the working tree.
+- **Action**: `git fetch origin` only — updates `origin/*` refs; **does not**
+  merge, rebase, or change the working tree / `HEAD`.
+- **Success**: silent (no persistent notification); status sensor reflects new
+  remote comparison on its next poll.
+- **Failure** (e.g. network, auth): `GitError` → persistent notification
+  "HA GitOps: fetch failed" with a short message; status may show `error` on
+  the next sensor update depending on `get_status()` outcome.
 
 ### 7.2 Service `ha_gitops.commit`
 
@@ -597,18 +603,16 @@ Required Python: **3.11+**. Required HA: **2024.1+**.
 ## 12. Release roadmap (high-level)
 
 The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
-entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from
-v0.1.1 onward. The first stable release continues with the following, **in this
-priority order** (highest first):
+entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from v0.1.1 onward; **`button.ha_gitops_fetch`**
+(§7.1) from v0.1.3 onward. The first stable release continues with the following,
+**in this priority order** (highest first):
 
-1. `button.ha_gitops_fetch` — refresh remote tracking refs without merging the
-   working tree (see §7.1 Buttons).
-2. After a non-empty pull: richer UX (e.g. notification action to open reload, or
+1. After a non-empty pull: richer UX (e.g. notification action to open reload, or
    repairs entry). **Automatic** `reload_core_config` / restart after pull remains
    **Release-only** and **opt-in** in options (default: notify only, as in MVP).
-3. Additional sensors: `local_commit`, `remote_commit`, `changed_files`,
+2. Additional sensors: `local_commit`, `remote_commit`, `changed_files`,
    `last_sync`.
-4. SSH key generation in the flow, explicit “Test connection”, and extending the
+3. SSH key generation in the flow, explicit “Test connection”, and extending the
    options flow (e.g. auto-reload-after-pull opt-in, further tuning).
-5. Backend migration from subprocess to GitPython behind the same API.
-6. Localization: en + ru.
+4. Backend migration from subprocess to GitPython behind the same API.
+5. Localization: en + ru.

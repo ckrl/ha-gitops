@@ -59,6 +59,7 @@ def _fake_manager() -> MagicMock:
     manager = MagicMock(name="GitManager")
     manager.initialize = AsyncMock(return_value=None)
     manager.get_status = AsyncMock(return_value=SyncStatus.UNKNOWN)
+    manager.fetch = AsyncMock(return_value=None)
     return manager
 
 
@@ -92,7 +93,7 @@ async def test_setup_entry_initializes_manager_and_creates_entities(
     sensor_states = [s for s in hass.states.async_all() if s.entity_id.startswith("sensor.")]
     button_states = [s for s in hass.states.async_all() if s.entity_id.startswith("button.")]
     assert len(sensor_states) == 1, f"expected one ha_gitops sensor, got: {sensor_states}"
-    assert len(button_states) == 2, f"expected pull+push buttons, got: {button_states}"
+    assert len(button_states) == 3, f"expected pull+fetch+push buttons, got: {button_states}"
 
 
 async def test_setup_entry_fails_when_initialize_raises(

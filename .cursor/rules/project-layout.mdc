@@ -17,7 +17,7 @@ ha-gitops/
 │       ├── const.py             # DOMAIN, CONF_*, дефолты, ключи статусов
 │       ├── git_manager.py       # ВСЯ git-логика; класс GitManager — единственная точка вызовов git
 │       ├── sensor.py            # SensorEntity: ha_gitops_status (+ extra в Release)
-│       ├── button.py            # ButtonEntity: ha_gitops_pull, ha_gitops_push
+│       ├── button.py            # ButtonEntity: pull, fetch, push
 │       ├── config_flow.py       # UI Config Flow (MVP)
 │       ├── services.yaml        # описание сервисов
 │       ├── strings.json         # UI-строки (en по умолчанию)

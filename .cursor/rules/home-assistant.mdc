@@ -60,10 +60,10 @@ class GitManager:
 - Атрибуты: `last_operation`, `last_operation_time` (ISO), `last_error` (str | None), `local_commit` (short hash), `remote_commit` (short hash).
 - `unique_id`: `f"{DOMAIN}_status"`.
 
-### Button `ha_gitops_pull`, `ha_gitops_push`
+### Button `ha_gitops_pull`, `ha_gitops_fetch`, `ha_gitops_push`
 
-- `async_press` — вызывает соответствующий метод `GitManager`, ловит `GitError`, выставляет статус через координатор/общую ссылку, шлёт `persistent_notification.create` при ошибке/важном событии (например, успешный pull → "Конфиг обновлён, рекомендуется перезагрузка HA").
-- `unique_id`: `f"{DOMAIN}_{action}"`.
+- `async_press` — вызывает соответствующий метод `GitManager`, ловит `GitError`, шлёт `persistent_notification.create` при ошибке или при успешном pull с изменёнными файлами (см. `button.py`).
+- `unique_id`: `f"{entry_id}_pull|fetch|push"`.
 
 ### Общее для entities
 
@@ -84,4 +84,4 @@ class GitManager:
 
 - НЕ использовать `hass.async_create_task` для git-операций без обработки исключений — они проглатываются.
 - НЕ вызывать `hass.async_block_till_done()` в продакшен-коде (только в тестах).
-- НЕ делать reload интеграции автоматически при изменениях файлов в Pull — только нотификация (см. `docs/architecture.md` §12, пункт 6: автоперезагрузка остаётся opt-in).
+- НЕ делать reload интеграции автоматически при изменениях файлов в Pull — только нотификация (см. `docs/architecture.md` §12: автоперезагрузка остаётся opt-in).

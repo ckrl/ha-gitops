@@ -1,6 +1,6 @@
-"""Unit tests for the ha_gitops Pull/Push buttons.
+"""Unit tests for the ha_gitops Pull / Fetch / Push buttons.
 
-Architecture: docs/architecture.md §6.1 (Buttons), §7.1 (Push action),
+Architecture: docs/architecture.md §7.1 (Pull / Fetch / Push buttons),
 §8 (GitManager contract), §10 (Security — sanitized notifications).
 
 A MagicMock GitManager + MagicMock hass keep these tests fast. End-to-end
@@ -13,7 +13,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 from homeassistant.const import EntityCategory
 
-from custom_components.ha_gitops.button import HaGitopsPullButton, HaGitopsPushButton
+from custom_components.ha_gitops.button import (
+    HaGitopsFetchButton,
+    HaGitopsPullButton,
+    HaGitopsPushButton,
+)
 from custom_components.ha_gitops.git_manager import GitError, GitResult
 
 
@@ -119,6 +123,59 @@ async def test_pull_button_does_not_swallow_non_git_exceptions() -> None:
     manager = MagicMock()
     manager.pull = AsyncMock(side_effect=RuntimeError("logic bug"))
     btn = HaGitopsPullButton(hass, entry, manager)
+    try:
+        await btn.async_press()
+    except RuntimeError as exc:
+        assert "logic bug" in str(exc)
+    else:  # pragma: no cover - sanity
+        raise AssertionError("RuntimeError should have propagated")
+
+
+# ---------------------------------------------------------------------------
+# Fetch button
+# ---------------------------------------------------------------------------
+
+
+async def test_fetch_button_metadata() -> None:
+    hass = _make_hass()
+    entry = _mock_config_entry("e_fetch")
+    btn = HaGitopsFetchButton(hass, entry, MagicMock())
+    assert btn.unique_id == "e_fetch_fetch"
+    assert btn.name == "Fetch"
+    assert btn.icon == "mdi:cloud-sync-outline"
+    assert btn.entity_category is EntityCategory.CONFIG
+
+
+async def test_fetch_button_invokes_manager_fetch() -> None:
+    hass = _make_hass()
+    entry = _mock_config_entry()
+    manager = MagicMock()
+    manager.fetch = AsyncMock(
+        return_value=GitResult(ok=True, message="Fetched", changed_files=())
+    )
+    await HaGitopsFetchButton(hass, entry, manager).async_press()
+    manager.fetch.assert_awaited_once()
+    hass.services.async_call.assert_not_called()
+
+
+async def test_fetch_button_notifies_on_git_error() -> None:
+    hass = _make_hass()
+    entry = _mock_config_entry("e3")
+    manager = MagicMock()
+    manager.fetch = AsyncMock(side_effect=GitError("network down"))
+    await HaGitopsFetchButton(hass, entry, manager).async_press()
+    payload = _last_notification(hass)
+    assert "fetch failed" in payload["title"].lower()
+    assert "network down" in payload["message"]
+    assert payload["notification_id"] == "e3_fetch"
+
+
+async def test_fetch_button_does_not_swallow_non_git_exceptions() -> None:
+    hass = _make_hass()
+    entry = _mock_config_entry()
+    manager = MagicMock()
+    manager.fetch = AsyncMock(side_effect=RuntimeError("logic bug"))
+    btn = HaGitopsFetchButton(hass, entry, manager)
     try:
         await btn.async_press()
     except RuntimeError as exc:

@@ -44,7 +44,7 @@ alwaysApply: false
 `sensor.py` / `button.py`:
 
 - Сенсор отображает корректный state и атрибуты после `async_update`.
-- Кнопки `pull`/`push` дёргают соответствующие методы `GitManager` (мок) и обрабатывают `GitError` без исключения наружу.
+- Кнопки `pull` / `fetch` / `push` дёргают соответствующие методы `GitManager` (мок) и обрабатывают `GitError` без исключения наружу (где применимо).
 - При ошибке кнопка вызывает `persistent_notification.create` (через мок `hass.services`).
 
 `__init__.py`:

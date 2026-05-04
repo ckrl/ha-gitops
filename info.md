@@ -12,7 +12,7 @@ and observe the sync state from the dashboard.
   services → Add integration** (no `configuration.yaml` block required).
 - Sync status sensor (`clean`, `modified`, `ahead`, `behind`, `diverged`,
   `unknown`).
-- Buttons to trigger `pull` and `push` (grouped on the integration **device**
+- Buttons to trigger `pull`, `fetch` (remote refs only), and `push` (grouped on the integration **device**
   page with the status sensor).
 - Safe by default: `secrets.yaml` and HA runtime state are ignored and
   protected from accidental commits by an in-code panic guard.
