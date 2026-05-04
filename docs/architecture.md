@@ -362,6 +362,10 @@ possible conflict resolution in YAML.
 - **Action**: `git fetch` + `git merge --ff-only origin/<branch>`.
 - **Success with changes**: status sensor refreshed, persistent
   notification "Config updated; reload Home Assistant to apply".
+- **Reload policy**: **MVP** — never auto-reload or auto-restart Home Assistant;
+  the user is notified only. **Release** — optional opt-in to perform an automatic
+  safe reload (exact mechanism TBD: e.g. `homeassistant.reload_core_config` and/or
+  full restart), default remains notify-only.
 - **Conflict / diverged**: status `error`/`diverged`, notification with
   details, **no merge applied**.
 - **No changes**: status `clean`, silent success.
@@ -584,14 +588,15 @@ The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
 entities, and the git operations above. The first stable release adds, in order
 of priority:
 
-1. SSH key generation in the flow, explicit “Test connection”, and an options
-   flow for `scan_interval` and related tuning.
+1. SSH key generation in the flow, explicit “Test connection”, and extending the
+   options flow (e.g. auto-reload-after-pull opt-in, further tuning).
 2. Backend migration from subprocess to GitPython behind the same API.
 3. Additional sensors: `local_commit`, `remote_commit`,
    `changed_files`, `last_sync`.
 4. `ha_gitops.commit` service for manual commits with a custom
    message.
 5. `button.ha_gitops_fetch`.
-6. Persistent notification with a "Reload configuration" action after
-   a non-empty pull (auto-reload remains opt-in only).
+6. After a non-empty pull: richer UX (e.g. notification action to open reload, or
+   repairs entry). **Automatic** `reload_core_config` / restart after pull remains
+   **Release-only** and **opt-in** in options (default: notify only, as in MVP).
 7. Localization: en + ru.
