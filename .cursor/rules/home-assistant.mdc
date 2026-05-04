@@ -46,7 +46,7 @@ class GitManager:
 
 ## Логика операций
 
-- **Push** — единое атомарное действие: `git add` (только yaml через `_get_yaml_files`) → проверка staged → `git commit` (если diff) → `git push`. Если ничего не staged, но есть unpushed — только `git push`. Если ничего нет — no-op + `SyncStatus.CLEAN`. См. `docs/architecture.md` §7.1.
+- **Push** — единое атомарное действие: `git add` (корневые `*.yaml` через `_get_yaml_files` + `.gitignore` если файл есть) → проверка staged → `git commit` (если diff) → `git push`. Если ничего не staged, но есть unpushed — только `git push`. Если ничего нет — no-op + `SyncStatus.CLEAN`. См. `docs/architecture.md` §7.1.
 - **Pull** — только `git fetch` + `git merge --ff-only origin/<branch>`. Никаких `--rebase`, `--no-ff`, `reset --hard` без явного флага в Release.
 - **Status** — алгоритм из §8.1: `fetch` → `git status --porcelain` → `rev-parse HEAD` vs `origin/<branch>` → `merge-base`. Реализовать ровно так.
 - Commit message — формат из §8.3 (`_build_commit_message`). Co-authored-by trailer обязателен. Author/email — через `git -c user.name=... -c user.email=...`, НЕ глобальный `git config`.

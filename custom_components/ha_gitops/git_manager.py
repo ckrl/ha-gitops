@@ -395,7 +395,11 @@ class GitManager:
             raise GitError("Repository not initialized. Call initialize() first.")
 
     async def _stage_yaml_files(self) -> list[FileChange]:
-        """Stage root-level YAML files (excluding secrets) and return staged FileChanges.
+        """Stage root-level YAML (excluding secrets) plus `.gitignore` when present.
+
+        `.gitignore` is included because `initialize()` may append the managed
+        ha-gitops block (`docs/architecture.md` §4.4); without staging it, Push
+        would be a no-op whenever only that file changed.
 
         Performs the secrets panic guard from `docs/architecture.md`
         §10.1 / security.mdc: if any secrets-like file ends up staged
@@ -403,9 +407,12 @@ class GitManager:
         unstaged and GitError is raised so the push/commit aborts loud
         and clear.
         """
-        yaml_files = self._get_yaml_files()
-        if yaml_files:
-            await self._run_git("add", "--", *yaml_files)
+        paths = list(self._get_yaml_files())
+        gitignore = self._config_dir / ".gitignore"
+        if await asyncio.to_thread(gitignore.is_file):
+            paths.append(".gitignore")
+        if paths:
+            await self._run_git("add", "--", *paths)
 
         rc, ls_out, _ = await self._run_git("ls-files", "--", "*.yaml", check=False)
         if rc == 0:

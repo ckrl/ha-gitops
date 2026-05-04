@@ -344,7 +344,9 @@ possible conflict resolution in YAML.
 A single atomic action from the user's perspective:
 
 ```
-git add <yaml files>     (via _get_yaml_files, secrets excluded)
+git add <root *.yaml>    (via _get_yaml_files, secrets excluded)
+git add .gitignore       (when the file exists — tracks the managed block
+                          from §4.4 and any user edits next to it)
    │
 git diff --cached --quiet?
  ├── NO  (changes staged) → git commit  →  git push origin <branch>
@@ -491,7 +493,7 @@ global `git config` is never touched.
 | User deleted the `.gitignore` block                                  | Block recreated on the next operation, warning logged                                                          |
 | `secrets.yaml` ends up staged                                        | Panic guard: unstage, abort, error notification (see §10.1)                                                    |
 | HA host: `git init` + root commit while `origin` already has commits | Unrelated histories — push rejected (non-FF), pull needs explicit merge strategy; see §6.1 brownfield recovery |
-| Git “dubious ownership” on `/config` | Mitigated per §4.2 via `GIT_CONFIG_*` `safe.directory` on every git subprocess (no global gitconfig) |
+| Git “dubious ownership” on `/config`                                 | Mitigated per §4.2 via `GIT_CONFIG_*` `safe.directory` on every git subprocess (no global gitconfig)           |
 
 ---
 

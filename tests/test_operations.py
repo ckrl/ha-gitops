@@ -72,6 +72,31 @@ async def test_push_no_changes_is_noop(
     assert "Nothing to push" in result.message
 
 
+async def test_push_commits_gitignore_when_only_gitignore_changed(
+    git_manager_seeded: GitManager,
+    config_dir: Path,
+    seeded_remote: str,
+    tmp_path: Path,
+) -> None:
+    """Managed-block / user edits to `.gitignore` must not be invisible to Push."""
+    await git_manager_seeded.initialize()
+    gi = (config_dir / ".gitignore").read_text(encoding="utf-8")
+    (config_dir / ".gitignore").write_text(
+        gi + "\n# ha_gitops integration test: gitignore-only commit\n",
+        encoding="utf-8",
+    )
+
+    result = await git_manager_seeded.push()
+    assert result.ok
+    assert ".gitignore" in result.changed_files
+
+    audit = tmp_path / "audit"
+    audit.mkdir()
+    _git(audit, "clone", seeded_remote, ".")
+    remote_gi = (audit / ".gitignore").read_text(encoding="utf-8")
+    assert "ha_gitops integration test: gitignore-only commit" in remote_gi
+
+
 async def test_push_commits_new_yaml_and_uploads_to_remote(
     git_manager_seeded: GitManager,
     config_dir: Path,
