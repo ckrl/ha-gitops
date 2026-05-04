@@ -191,6 +191,7 @@ ha-gitops/
 │       ├── strings.json         # UI strings (en)
 │       ├── brand/               # integration images (HA 2026.3+ local brands API)
 │       │   └── icon.png         # square icon (HACS / Settings → Integrations)
+│       │                        # pre-release: rescale/replace for larger/crisper asset (see §12)
 │       └── translations/        # localized strings
 ├── tests/
 │   ├── conftest.py
@@ -222,10 +223,14 @@ Required fields:
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@<owner>"],
-  "iot_class": "local_push",
+  "iot_class": "cloud_polling",
   "config_flow": true
 }
 ```
+
+`iot_class` is **`cloud_polling`**: status polling and git operations reach the
+**remote** over the network (SSH), so Home Assistant treats the integration as
+**needing internet / outbound connectivity** (not a purely local-LAN device).
 
 `requirements` is empty in the MVP — the integration depends on the
 `git` binary, which is not a Python dependency. `config_flow` is **true** so
@@ -601,6 +606,11 @@ Required Python: **3.11+**. Required HA: **2024.1+**.
 ---
 
 ## 12. Release roadmap (high-level)
+
+**Pre-release (branding):** replace or re-export `custom_components/ha_gitops/brand/icon.png`
+at a **larger** resolution (e.g. **512×512** minimum for crisp UI scales) or supply
+separate `logo.png` for wide layouts — current asset is functional but may look
+small until the frontend cache refreshes.
 
 The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
 entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from v0.1.1 onward; **`button.ha_gitops_fetch`**

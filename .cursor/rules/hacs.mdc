@@ -22,7 +22,7 @@ alwaysApply: false
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@<owner>"],
-  "iot_class": "local_push",
+  "iot_class": "cloud_polling",
   "config_flow": true
 }
 ```
@@ -32,7 +32,8 @@ alwaysApply: false
 - `domain` навсегда = `ha_gitops`. Не менять.
 - `version` — semver (`MAJOR.MINOR.PATCH`). Поднимать в каждом релизе. Должен совпадать с git-тегом (`vX.Y.Z`).
 - `requirements` — пусто в MVP (зависимость на `git` binary не Python). В Release добавить `"GitPython>=3.1"` (точное имя пакета на PyPI).
-- `iot_class` = `local_push` (не менять без обоснования; см. HA dev docs).
+- `iot_class` = `cloud_polling` — удалённый Git по SSH/сеть; в HA классификатор
+  `cloud_*` отражает **необходимость исходящего интернета** для пользовательского UI.
 - `config_flow` = `true` (MVP: UI Config Flow в `config_flow.py`).
 - `codeowners` — массив GH-handles с `@`.
 - **Brand images** — каталог `custom_components/ha_gitops/brand/` с минимум `icon.png`

@@ -14,7 +14,7 @@ alwaysApply: false
 - MVP: конфиг через **Config Flow** → `async_setup_entry(hass, entry)` + `async_unload_entry`; `manifest.json`: `config_flow: true`. Топовый `async_setup(hass, config)` только возвращает `True` (YAML-блок домена не используется).
 - Состояние интеграции — в `hass.data[DOMAIN][entry.entry_id]` (один config entry на инстанс HA): `GitManager` и `scan_interval`.
 - Регистрация платформ: `await hass.config_entries.async_forward_entry_setups(entry, ("sensor", "button"))`.
-- `manifest.json` — поля строго по `docs/architecture.md` §5.2: `domain`, `name`, `version`, `documentation`, `issue_tracker`, `requirements`, `dependencies`, `codeowners`, `iot_class: "local_push"`, `config_flow: true`.
+- `manifest.json` — поля строго по `docs/architecture.md` §5.2: `domain`, `name`, `version`, `documentation`, `issue_tracker`, `requirements`, `dependencies`, `codeowners`, `iot_class: "cloud_polling"`, `config_flow: true`.
 
 ## Async-контракт
 

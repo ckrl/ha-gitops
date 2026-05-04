@@ -25,7 +25,7 @@ def test_domain_is_stable() -> None:
 def test_manifest_domain_matches_const() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert manifest["domain"] == DOMAIN
-    assert manifest["iot_class"] == "local_push"
+    assert manifest["iot_class"] == "cloud_polling"
     assert manifest.get("config_flow") is True
 
 
