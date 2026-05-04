@@ -240,6 +240,80 @@ ha_gitops:
 Release adds a UI Config Flow that drives the same options plus an
 SSH key generator and a "Test connection" step.
 
+### 6.1 Greenfield vs brownfield
+
+**Greenfield** — the remote is empty (or not yet created) and `GitManager.initialize()`
+creates `/config/.git`, wires `origin`, writes the managed `.gitignore` block,
+and optionally checks out `origin/<branch>` when the remote already has an
+initial commit pushed from another machine.
+
+**Brownfield** — the remote **already contains commits** (for example you
+initialized the repo and pushed from a laptop) and the Home Assistant host
+already has a populated `/config` with YAML. The goal is **one linear history**
+shared with that remote, not a second unrelated root commit on the appliance.
+
+#### SSH when operating `git` manually on the host
+
+The integration forces `IdentitiesOnly=yes` and a dedicated key file (§4.3).
+Interactive shells on the same host do **not** automatically use
+`/config/.ha_gitops/id_ed25519` — they follow OpenSSH defaults (`~/.ssh/…`).
+Either:
+
+- pass `GIT_SSH_COMMAND` on each invocation:
+
+  ```bash
+  export GIT_SSH_COMMAND='ssh -i /config/.ha_gitops/id_ed25519 \
+    -o UserKnownHostsFile=/config/.ha_gitops/known_hosts \
+    -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes'
+  ```
+
+- or add a `Host github.com` stanza in **the SSH user’s** `~/.ssh/config` with
+  the same `IdentityFile` and `IdentitiesOnly yes`.
+
+The GitHub account that owns the **public** half of that key must have read
+(and write, for push) access to `repo_url` — collaborator, org membership, or a
+repo deploy key.
+
+#### Brownfield mistake: `git init` + first commit on HA while `origin` already has history
+
+If the remote already has commits and you run `git init` on `/config`, stage
+YAML, and `git commit`, you create a **second root commit** unrelated to the
+remote graph. `git push` is then **non-fast-forward**; `git pull` without an
+explicit strategy refuses to merge the two unrelated lines of history.
+
+**Prevention (recommended):** before making the first local commit on the HA
+host, connect the working tree to the existing remote and align with its tip
+(for example `git remote add` + `git fetch` + check out or reset to
+`origin/<branch>` per your backup policy), **or** only ever push the first
+commits from one machine and let `ha_gitops` initialize the appliance without
+hand-rolling a competing root commit.
+
+**Recovery when remote should win** (you have no unique work in the local root
+commit you care to keep, or you have a backup): after `git fetch origin`, reset
+the current branch hard to the remote tip, for example
+`git reset --hard origin/master` (replace `master` with your branch). This
+**discards** the orphan local commit and any uncommitted changes in the
+working tree — verify backups first.
+
+**Recovery when both sides must be kept:** use a one-time explicit merge of
+unrelated histories (Git prints the exact hint), resolve conflicts, then return
+to fast-forward-only pulls for day-to-day use. Expect a merge commit and
+possible conflict resolution in YAML.
+
+#### Brownfield checklist (manual `git` on the appliance)
+
+1. Confirm `git` is on `PATH` (§11).
+2. Install the deploy key: private key under `/config/.ha_gitops/`, mode `600`;
+   public key on the GitHub identity that has access to the repo.
+3. Use `GIT_SSH_COMMAND` or `~/.ssh/config` so **every** `git fetch`/`pull`/`push`
+   from a shell uses that key (`IdentitiesOnly=yes`).
+4. Do **not** create a competing root commit: align with `origin/<branch>`
+   before or instead of hand-rolling `git init` + `git commit` when the remote
+   is non-empty.
+5. Set upstream once: `git push -u origin <branch>` or
+   `git branch --set-upstream-to=origin/<branch> <branch>` so bare `git pull`
+   knows the default merge ref.
+
 ---
 
 ## 7. Entities
@@ -395,17 +469,18 @@ global `git config` is never touched.
 
 ## 9. Edge cases
 
-| Scenario                            | Behaviour                                                   |
-| ----------------------------------- | ----------------------------------------------------------- |
-| `git` binary missing                | Setup fails with a clear error, HA not affected             |
-| Remote unreachable                  | Status `error`, retried on the next scan interval           |
-| Conflict during pull                | Status `diverged`, no merge applied, notification           |
-| Push rejected (remote ahead)        | Error rewritten to "Pull first.", notification              |
-| SSH key missing or invalid          | Setup error with remediation hint                           |
-| Empty commit (nothing to push)      | No-op, status stays `clean`                                 |
-| HA restart mid-operation            | Operation aborts, status refreshes on the next scan         |
-| User deleted the `.gitignore` block | Block recreated on the next operation, warning logged       |
-| `secrets.yaml` ends up staged       | Panic guard: unstage, abort, error notification (see §10.1) |
+| Scenario                                                             | Behaviour                                                                                                      |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `git` binary missing                                                 | Setup fails with a clear error, HA not affected                                                                |
+| Remote unreachable                                                   | Status `error`, retried on the next scan interval                                                              |
+| Conflict during pull                                                 | Status `diverged`, no merge applied, notification                                                              |
+| Push rejected (remote ahead)                                         | Error rewritten to "Pull first.", notification                                                                 |
+| SSH key missing or invalid                                           | Setup error with remediation hint                                                                              |
+| Empty commit (nothing to push)                                       | No-op, status stays `clean`                                                                                    |
+| HA restart mid-operation                                             | Operation aborts, status refreshes on the next scan                                                            |
+| User deleted the `.gitignore` block                                  | Block recreated on the next operation, warning logged                                                          |
+| `secrets.yaml` ends up staged                                        | Panic guard: unstage, abort, error notification (see §10.1)                                                    |
+| HA host: `git init` + root commit while `origin` already has commits | Unrelated histories — push rejected (non-FF), pull needs explicit merge strategy; see §6.1 brownfield recovery |
 
 ---
 
