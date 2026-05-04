@@ -35,6 +35,10 @@ alwaysApply: false
 - `iot_class` = `local_push` (не менять без обоснования; см. HA dev docs).
 - `config_flow` = `true` (MVP: UI Config Flow в `config_flow.py`).
 - `codeowners` — массив GH-handles с `@`.
+- **Brand images** — каталог `custom_components/ha_gitops/brand/` с минимум `icon.png`
+  (квадратная иконка; см. HA [brand images](https://developers.home-assistant.io/docs/core/integration/brand_images)).
+  Для HA **2026.3+** локальный `brand/` подхватывается API `/api/brands/integration/…`;
+  HACS ожидает brand-ассеты в репозитории интеграции.
 
 ## hacs.json (в корне репо)
 

@@ -21,6 +21,7 @@ ha-gitops/
 │       ├── config_flow.py       # UI Config Flow (MVP)
 │       ├── services.yaml        # описание сервисов
 │       ├── strings.json         # UI-строки (en по умолчанию)
+│       ├── brand/               # icon.png (и при необходимости logo.png) для HA/HACS
 │       └── translations/
 │           ├── en.json
 │           └── ru.json

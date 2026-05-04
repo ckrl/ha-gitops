@@ -1,5 +1,7 @@
 # HA GitOps
 
+![HA GitOps icon](https://github.com/ckrl/ha-gitops/raw/master/custom_components/ha_gitops/brand/icon.png)
+
 GitOps for Home Assistant configuration. Treat `/config/` as a Git working
 directory: pull new YAML from the upstream repository, push local edits back,
 and observe the sync state from the dashboard.

@@ -189,6 +189,8 @@ ha-gitops/
 │       ├── config_flow.py       # UI Config Flow (MVP)
 │       ├── services.yaml        # service descriptors
 │       ├── strings.json         # UI strings (en)
+│       ├── brand/               # integration images (HA 2026.3+ local brands API)
+│       │   └── icon.png         # square icon (HACS / Settings → Integrations)
 │       └── translations/        # localized strings
 ├── tests/
 │   ├── conftest.py
