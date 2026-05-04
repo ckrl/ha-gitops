@@ -19,6 +19,8 @@ from pathlib import Path
 
 from .const import (
     CO_AUTHOR_TRAILER,
+    DEFAULT_SSH_DIR,
+    DEFAULT_SSH_KEY_FILENAME,
     GITIGNORE_MARKER,
     GITIGNORE_TEMPLATE,
     SECRETS_FILENAMES,
@@ -26,6 +28,26 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def normalize_ssh_key_path(config_dir: Path, raw: str | Path | None) -> Path:
+    """Resolve the SSH private key path for this Home Assistant configuration tree.
+
+    - Empty / whitespace → ``<config_dir>/.ha_gitops/id_ed25519`` (integration default).
+    - Absolute path (after ``expanduser``) → used as-is.
+    - Relative path → resolved under ``config_dir`` (so ``.ha_gitops/id_ed25519`` is
+      always relative to the HA config directory, not the process CWD).
+
+    This matches all common runtimes: HA OS / Container (``/config``), Core/venv
+    (e.g. ``~/.homeassistant``), devcontainer bind-mounts.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return config_dir / DEFAULT_SSH_DIR / DEFAULT_SSH_KEY_FILENAME
+    p = Path(text).expanduser()
+    if p.is_absolute():
+        return p
+    return (config_dir / p).resolve()
 
 
 @lru_cache(maxsize=1)
@@ -100,7 +122,7 @@ class GitManager:
         self._config_dir = Path(config_dir)
         self._repo_url = repo_url
         self._branch = branch
-        self._ssh_key_path = Path(ssh_key_path)
+        self._ssh_key_path = normalize_ssh_key_path(self._config_dir, ssh_key_path)
         self._author_name = author_name
         self._author_email = author_email
 
@@ -111,6 +133,11 @@ class GitManager:
     @property
     def branch(self) -> str:
         return self._branch
+
+    @property
+    def ssh_key_path(self) -> Path:
+        """Absolute path to the private SSH key used for ``GIT_SSH_COMMAND``."""
+        return self._ssh_key_path
 
     async def initialize(self) -> None:
         """Initialize the repository: git init / remote / .gitignore / first fetch.

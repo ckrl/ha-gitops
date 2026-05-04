@@ -76,7 +76,16 @@ only integration-spawned git invocations trust the configured working tree.
 
 ### 4.3 SSH authentication
 
-`/config/.ha_gitops/` holds the integration's SSH material:
+The default layout is **`<config>/.ha_gitops/`** (on HA OS / Container the
+config directory is usually mounted as `/config`; on HA Core it may be
+`~/.homeassistant` or another path — `hass.config.path()` is the source of
+truth). In the Config Flow, an **empty** SSH key field selects
+`<config>/.ha_gitops/id_ed25519`. A **relative** path (e.g.
+`.ha_gitops/id_ed25519`) is always resolved **under the config directory**, not
+relative to the supervisor process cwd. An **absolute** path is used as-is
+(after `~` expansion).
+
+Example paths when the config directory is `/config`:
 
 ```
 /config/.ha_gitops/

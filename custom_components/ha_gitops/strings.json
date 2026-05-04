@@ -10,7 +10,7 @@
           "branch": "Branch name",
           "git_author_name": "Git commit author name",
           "git_author_email": "Git commit author email",
-          "ssh_key_path": "Path to private SSH key (leave empty for /config/.ha_gitops/id_ed25519)"
+          "ssh_key_path": "Private SSH key: leave empty for .ha_gitops/id_ed25519 under the config dir, or enter an absolute path, or a path relative to the config directory (e.g. .ha_gitops/id_ed25519)"
         }
       }
     },

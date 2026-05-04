@@ -25,8 +25,6 @@ from .const import (
     DEFAULT_AUTHOR_NAME,
     DEFAULT_BRANCH,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_SSH_DIR,
-    DEFAULT_SSH_KEY_FILENAME,
     DOMAIN,
 )
 from .git_manager import GitError, GitManager
@@ -47,16 +45,12 @@ STEP_USER_SCHEMA = vol.Schema(
 async def _validate_git_connection(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Run GitManager.initialize(); return normalized data for ConfigEntry storage."""
     ssh_raw = (data.get(CONF_SSH_KEY_PATH) or "").strip()
-    if not ssh_raw:
-        ssh_key_path = str(hass.config.path(DEFAULT_SSH_DIR, DEFAULT_SSH_KEY_FILENAME))
-    else:
-        ssh_key_path = ssh_raw
 
     manager = GitManager(
         config_dir=hass.config.path(),
         repo_url=data[CONF_REPO_URL].strip(),
         branch=(data.get(CONF_BRANCH) or DEFAULT_BRANCH).strip(),
-        ssh_key_path=ssh_key_path,
+        ssh_key_path=ssh_raw,
         author_name=(data.get(CONF_GIT_AUTHOR_NAME) or DEFAULT_AUTHOR_NAME).strip(),
         author_email=(data.get(CONF_GIT_AUTHOR_EMAIL) or DEFAULT_AUTHOR_EMAIL).strip(),
     )
@@ -67,7 +61,7 @@ async def _validate_git_connection(hass: HomeAssistant, data: dict[str, Any]) ->
         CONF_BRANCH: (data.get(CONF_BRANCH) or DEFAULT_BRANCH).strip(),
         CONF_GIT_AUTHOR_NAME: (data.get(CONF_GIT_AUTHOR_NAME) or DEFAULT_AUTHOR_NAME).strip(),
         CONF_GIT_AUTHOR_EMAIL: (data.get(CONF_GIT_AUTHOR_EMAIL) or DEFAULT_AUTHOR_EMAIL).strip(),
-        CONF_SSH_KEY_PATH: ssh_key_path,
+        CONF_SSH_KEY_PATH: str(manager.ssh_key_path),
         CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
     }
 

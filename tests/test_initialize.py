@@ -9,7 +9,18 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from custom_components.ha_gitops.const import GITIGNORE_MARKER
-from custom_components.ha_gitops.git_manager import GitError, GitManager
+from custom_components.ha_gitops.git_manager import GitError, GitManager, normalize_ssh_key_path
+
+
+def test_normalize_ssh_key_path_default_and_relative(config_dir: Path) -> None:
+    d = config_dir.resolve()
+    assert normalize_ssh_key_path(d, "") == d / ".ha_gitops" / "id_ed25519"
+    assert normalize_ssh_key_path(d, "  ") == d / ".ha_gitops" / "id_ed25519"
+    assert (
+        normalize_ssh_key_path(d, ".ha_gitops/id_ed25519")
+        == (d / ".ha_gitops" / "id_ed25519").resolve()
+    )
+    assert normalize_ssh_key_path(d, "/tmp/abs_key") == Path("/tmp/abs_key")
 
 
 async def test_run_git_success_returns_stdout(git_manager: GitManager) -> None:
