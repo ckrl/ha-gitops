@@ -1,6 +1,6 @@
 ---
 description: Home Assistant integration conventions (entities, config, async, GitManager contract)
-globs: 'custom_components/**/*.py'
+globs: "custom_components/**/*.py"
 alwaysApply: false
 ---
 
