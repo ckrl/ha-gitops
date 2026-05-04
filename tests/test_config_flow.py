@@ -9,6 +9,7 @@ import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.ha_gitops.config_flow import HaGitopsConfigFlow
 from custom_components.ha_gitops.const import (
@@ -36,6 +37,17 @@ def _valid_user_input() -> dict[str, str]:
         CONF_GIT_AUTHOR_NAME: "HA",
         CONF_GIT_AUTHOR_EMAIL: "ha@example.com",
         CONF_SSH_KEY_PATH: "",
+    }
+
+
+def _sample_entry_data() -> dict[str, Any]:
+    return {
+        CONF_REPO_URL: "git@example.com:org/old.git",
+        CONF_BRANCH: "main",
+        CONF_GIT_AUTHOR_NAME: "HA",
+        CONF_GIT_AUTHOR_EMAIL: "ha@example.com",
+        CONF_SSH_KEY_PATH: "/config/.ha_gitops/id_ed25519",
+        CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
     }
 
 
@@ -130,3 +142,102 @@ async def test_config_flow_aborts_when_already_configured(hass: HomeAssistant) -
 
 async def test_config_flow_class_version() -> None:
     assert HaGitopsConfigFlow.VERSION == 1
+
+
+async def test_config_flow_exposes_options_flow(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="HA GitOps",
+        data=_sample_entry_data(),
+        unique_id=DOMAIN,
+    )
+    entry.add_to_hass(hass)
+    assert HaGitopsConfigFlow.async_supports_options_flow(entry) is True
+
+
+async def test_options_flow_shows_init_form(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="HA GitOps",
+        data=_sample_entry_data(),
+        unique_id=DOMAIN,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+
+async def test_options_flow_updates_entry_data_and_reloads(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="HA GitOps",
+        data=_sample_entry_data(),
+        unique_id=DOMAIN,
+    )
+    entry.add_to_hass(hass)
+
+    updated = {
+        **_sample_entry_data(),
+        CONF_REPO_URL: "git@example.com:org/new.git",
+        CONF_BRANCH: "develop",
+        CONF_SCAN_INTERVAL: 600,
+    }
+
+    reload = AsyncMock(return_value=None)
+    with (
+        patch(
+            "custom_components.ha_gitops.config_flow._validate_git_connection",
+            new=AsyncMock(return_value=updated),
+        ),
+        patch.object(hass.config_entries, "async_reload", reload),
+    ):
+        start = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            start["flow_id"],
+            user_input={
+                CONF_REPO_URL: "git@example.com:org/new.git",
+                CONF_BRANCH: "develop",
+                CONF_GIT_AUTHOR_NAME: "HA",
+                CONF_GIT_AUTHOR_EMAIL: "ha@example.com",
+                CONF_SSH_KEY_PATH: "",
+                CONF_SCAN_INTERVAL: 600,
+            },
+        )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert entry.data[CONF_REPO_URL] == "git@example.com:org/new.git"
+    assert entry.data[CONF_BRANCH] == "develop"
+    assert entry.data[CONF_SCAN_INTERVAL] == 600
+    reload.assert_awaited_once_with(entry.entry_id)
+
+
+async def test_options_flow_shows_error_on_git_failure(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="HA GitOps",
+        data=_sample_entry_data(),
+        unique_id=DOMAIN,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.ha_gitops.config_flow._validate_git_connection",
+        new=AsyncMock(side_effect=GitError("fail")),
+    ):
+        start = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            start["flow_id"],
+            user_input={
+                CONF_REPO_URL: "git@example.com:org/bad.git",
+                CONF_BRANCH: "main",
+                CONF_GIT_AUTHOR_NAME: "HA",
+                CONF_GIT_AUTHOR_EMAIL: "ha@example.com",
+                CONF_SSH_KEY_PATH: "",
+                CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+            },
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "git_error"}

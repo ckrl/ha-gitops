@@ -22,6 +22,26 @@
       "unknown": "Unexpected error. Check the logs."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HA GitOps",
+        "description": "Change the Git remote, branch, commit author, SSH key path, or how often the sync status sensor is polled. Settings are checked with GitManager.initialize() before saving; the integration reloads afterward.",
+        "data": {
+          "repo_url": "Git remote URL (SSH, e.g. git@github.com:owner/repo.git)",
+          "branch": "Branch name",
+          "git_author_name": "Git commit author name",
+          "git_author_email": "Git commit author email",
+          "ssh_key_path": "Private SSH key: leave empty for .ha_gitops/id_ed25519 under the config dir, or enter an absolute path, or a path relative to the config directory (e.g. .ha_gitops/id_ed25519)",
+          "scan_interval": "Status sensor poll interval (seconds, 30–86400)"
+        }
+      }
+    },
+    "error": {
+      "git_error": "Could not initialize the Git repository. Check the URL, branch, SSH key path, and Home Assistant logs.",
+      "unknown": "Unexpected error. Check the logs."
+    }
+  },
   "entity": {
     "sensor": {
       "sync_status": {

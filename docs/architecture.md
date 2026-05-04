@@ -264,14 +264,18 @@ During the final step the flow runs `GitManager.initialize()` against the live
 `/config` tree. Failures surface as form errors; successful completion creates
 the config entry and loads `sensor` + `button` platforms.
 
-`scan_interval` is stored on the entry with default **300** seconds (options
-flow / UI tuning is Release scope).
+`scan_interval` is stored on the config entry (default **300** seconds).
+
+**Reconfiguration:** Settings → **HA GitOps** → **Configure** opens the
+**Options flow** (`async_get_options_flow`): the same fields as the initial
+form plus `scan_interval`. Submit runs `GitManager.initialize()` again,
+persists updates to `entry.data`, and `async_reload`s the config entry so
+`GitManager` and entity scan intervals pick up new values.
 
 Entities share one **device registry** entry (`DeviceEntryType.SERVICE`) so
 Pull, Push, and Sync status appear together on the integration device page.
 
-**Release** adds an SSH key generator, explicit “Test connection”, HTTPS auth,
-and an options flow for advanced tuning.
+**Release** adds an SSH key generator, explicit “Test connection”, and HTTPS auth.
 
 ### 6.1 Greenfield vs brownfield
 

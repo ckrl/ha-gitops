@@ -10,7 +10,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
 
@@ -41,6 +41,29 @@ STEP_USER_SCHEMA = vol.Schema(
     }
 )
 
+STEP_OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_REPO_URL): cv.string,
+        vol.Optional(CONF_BRANCH, default=DEFAULT_BRANCH): cv.string,
+        vol.Optional(CONF_GIT_AUTHOR_NAME, default=DEFAULT_AUTHOR_NAME): cv.string,
+        vol.Optional(CONF_GIT_AUTHOR_EMAIL, default=DEFAULT_AUTHOR_EMAIL): cv.string,
+        vol.Optional(CONF_SSH_KEY_PATH, default=""): cv.string,
+        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+            vol.Coerce(int), vol.Range(min=30, max=86400)
+        ),
+    }
+)
+
+
+def _coerce_scan_interval(data: dict[str, Any]) -> int:
+    """Return scan interval in seconds (clamped)."""
+    raw = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_SCAN_INTERVAL
+    return max(30, min(n, 86400))
+
 
 async def _validate_git_connection(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Run GitManager.initialize(); return normalized data for ConfigEntry storage."""
@@ -62,7 +85,7 @@ async def _validate_git_connection(hass: HomeAssistant, data: dict[str, Any]) ->
         CONF_GIT_AUTHOR_NAME: (data.get(CONF_GIT_AUTHOR_NAME) or DEFAULT_AUTHOR_NAME).strip(),
         CONF_GIT_AUTHOR_EMAIL: (data.get(CONF_GIT_AUTHOR_EMAIL) or DEFAULT_AUTHOR_EMAIL).strip(),
         CONF_SSH_KEY_PATH: str(manager.ssh_key_path),
-        CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        CONF_SCAN_INTERVAL: _coerce_scan_interval(data),
     }
 
 
@@ -97,5 +120,53 @@ class HaGitopsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(STEP_USER_SCHEMA, user_input),
+            errors=errors,
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> HaGitopsOptionsFlow:
+        """Allow changing connection settings from Integrations → Configure."""
+        return HaGitopsOptionsFlow(config_entry)
+
+
+class HaGitopsOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
+    """Options flow: same fields as initial setup; updates entry.data and reloads."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Offer the same form as the initial user step, plus scan interval."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="init",
+                data_schema=self.add_suggested_values_to_schema(
+                    STEP_OPTIONS_SCHEMA,
+                    {**self.config_entry.data},
+                ),
+            )
+
+        errors: dict[str, str] = {}
+        try:
+            normalized = await _validate_git_connection(self.hass, user_input)
+        except GitError:
+            _LOGGER.exception("ha_gitops options flow: repository initialization failed")
+            errors["base"] = "git_error"
+        except Exception:  # pragma: no cover - defensive
+            _LOGGER.exception("ha_gitops options flow: unexpected error")
+            errors["base"] = "unknown"
+        else:
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=normalized,
+            )
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(STEP_OPTIONS_SCHEMA, user_input),
             errors=errors,
         )
