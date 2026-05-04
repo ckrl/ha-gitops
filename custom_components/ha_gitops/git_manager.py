@@ -13,7 +13,7 @@ import logging
 import os
 import shlex
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -101,6 +101,16 @@ class CommitInfo:
     timestamp: str  # ISO-8601
 
 
+@dataclass(slots=True, frozen=True)
+class InspectionSnapshot:
+    """Single poll of status + commit tips + working-tree YAML changes."""
+
+    status: SyncStatus
+    local: CommitInfo | None
+    remote: CommitInfo | None
+    changed: tuple[FileChange, ...]
+
+
 class GitManager:
     """Single entry point for every git interaction performed by the integration.
 
@@ -126,6 +136,13 @@ class GitManager:
         self._author_name = author_name
         self._author_email = author_email
 
+        self._last_operation: str | None = None
+        self._last_operation_at: datetime | None = None
+        self._last_sync_at: datetime | None = None
+
+        self._inspection_snapshot: InspectionSnapshot | None = None
+        self._inspection_lock = asyncio.Lock()
+
     @property
     def config_dir(self) -> Path:
         return self._config_dir
@@ -138,6 +155,36 @@ class GitManager:
     def ssh_key_path(self) -> Path:
         """Absolute path to the private SSH key used for ``GIT_SSH_COMMAND``."""
         return self._ssh_key_path
+
+    @property
+    def last_operation(self) -> str | None:
+        """Last completed ``push`` / ``pull`` / ``fetch`` / ``commit`` name."""
+        return self._last_operation
+
+    @property
+    def last_operation_at(self) -> datetime | None:
+        """UTC time when ``last_operation`` finished."""
+        return self._last_operation_at
+
+    @property
+    def last_sync_at(self) -> datetime | None:
+        """UTC time of last successful remote-touching sync (fetch/pull/push path)."""
+        return self._last_sync_at
+
+    def _invalidate_inspection_snapshot(self) -> None:
+        self._inspection_snapshot = None
+
+    def _record_operation(self, op: str, *, synced: bool = False) -> None:
+        self._last_operation = op
+        self._last_operation_at = datetime.now(UTC)
+        if synced:
+            self._last_sync_at = self._last_operation_at
+        self._invalidate_inspection_snapshot()
+
+    def _touch_last_sync_only(self) -> None:
+        """Mark remote refs as fresh without changing ``last_operation`` (initialize)."""
+        self._last_sync_at = datetime.now(UTC)
+        self._invalidate_inspection_snapshot()
 
     async def initialize(self) -> None:
         """Initialize the repository: git init / remote / .gitignore / first fetch.
@@ -180,6 +227,9 @@ class GitManager:
 
         await self._ensure_gitignore()
 
+        if fetch_ok:
+            self._touch_last_sync_only()
+
     async def push(self) -> GitResult:
         """Stage YAML files (secrets-guarded), commit if there are changes, push.
 
@@ -190,95 +240,115 @@ class GitManager:
         genuinely nothing to do, it returns a clean no-op.
         """
         await self._require_initialized()
+        synced = False
+        try:
+            files = await self._stage_yaml_files()
+            committed_changes: tuple[str, ...] = ()
+            if files:
+                message = self._build_commit_message(files)
+                await self._run_git(*self._author_args(), "commit", "-m", message)
+                committed_changes = tuple(f.name for f in files)
 
-        files = await self._stage_yaml_files()
-        committed_changes: tuple[str, ...] = ()
-        if files:
-            message = self._build_commit_message(files)
-            await self._run_git(*self._author_args(), "commit", "-m", message)
-            committed_changes = tuple(f.name for f in files)
+            rc, _, _ = await self._run_git("rev-parse", "--verify", "HEAD", check=False)
+            if rc != 0:
+                return GitResult(ok=True, message="Nothing to push")
 
-        rc, _, _ = await self._run_git("rev-parse", "--verify", "HEAD", check=False)
-        if rc != 0:
-            return GitResult(ok=True, message="Nothing to push")
+            rc_remote, _, _ = await self._run_git(
+                "rev-parse", "--verify", f"origin/{self._branch}", check=False
+            )
+            if rc_remote != 0:
+                try:
+                    await self._run_git("push", "--set-upstream", "origin", self._branch)
+                except GitError as exc:
+                    raise self._classify_push_error(exc) from exc
+                synced = True
+                return GitResult(ok=True, message="Initial push", changed_files=committed_changes)
 
-        rc_remote, _, _ = await self._run_git(
-            "rev-parse", "--verify", f"origin/{self._branch}", check=False
-        )
-        if rc_remote != 0:
+            _, ahead_str, _ = await self._run_git(
+                "rev-list", "--count", f"origin/{self._branch}..HEAD"
+            )
+            if int(ahead_str.strip() or "0") == 0:
+                return GitResult(ok=True, message="Nothing to push")
+
             try:
-                await self._run_git("push", "--set-upstream", "origin", self._branch)
+                await self._run_git("push", "origin", self._branch)
             except GitError as exc:
                 raise self._classify_push_error(exc) from exc
-            return GitResult(ok=True, message="Initial push", changed_files=committed_changes)
-
-        _, ahead_str, _ = await self._run_git("rev-list", "--count", f"origin/{self._branch}..HEAD")
-        if int(ahead_str.strip() or "0") == 0:
-            return GitResult(ok=True, message="Nothing to push")
-
-        try:
-            await self._run_git("push", "origin", self._branch)
-        except GitError as exc:
-            raise self._classify_push_error(exc) from exc
-        return GitResult(ok=True, message="Pushed", changed_files=committed_changes)
+            synced = True
+            return GitResult(ok=True, message="Pushed", changed_files=committed_changes)
+        finally:
+            self._record_operation("push", synced=synced)
 
     async def pull(self) -> GitResult:
         """Fetch and fast-forward only — never auto-merge or rebase."""
-        await self._require_initialized()
-        await self._run_git("fetch", "origin", "--quiet")
+        synced = False
+        try:
+            await self._require_initialized()
+            await self._run_git("fetch", "origin", "--quiet")
 
-        rc, _, _ = await self._run_git(
-            "rev-parse", "--verify", f"origin/{self._branch}", check=False
-        )
-        if rc != 0:
-            raise GitError(f"Remote branch origin/{self._branch} not found")
-
-        rc_head, old_head_out, _ = await self._run_git("rev-parse", "HEAD", check=False)
-        old_head = old_head_out.strip() if rc_head == 0 else ""
-
-        rc, stdout, stderr = await self._run_git(
-            "merge", "--ff-only", f"origin/{self._branch}", check=False
-        )
-        if rc != 0:
-            raise GitConflictError(
-                f"Fast-forward merge refused (diverged history?): "
-                f"{stderr.strip() or stdout.strip()}"
+            rc, _, _ = await self._run_git(
+                "rev-parse", "--verify", f"origin/{self._branch}", check=False
             )
+            if rc != 0:
+                raise GitError(f"Remote branch origin/{self._branch} not found")
 
-        _, new_head_out, _ = await self._run_git("rev-parse", "HEAD")
-        new_head = new_head_out.strip()
+            rc_head, old_head_out, _ = await self._run_git("rev-parse", "HEAD", check=False)
+            old_head = old_head_out.strip() if rc_head == 0 else ""
 
-        changed: tuple[str, ...] = ()
-        if old_head and old_head != new_head:
-            _, diff_out, _ = await self._run_git("diff", "--name-only", old_head, new_head)
-            changed = tuple(line for line in diff_out.splitlines() if line)
+            rc, stdout, stderr = await self._run_git(
+                "merge", "--ff-only", f"origin/{self._branch}", check=False
+            )
+            if rc != 0:
+                raise GitConflictError(
+                    f"Fast-forward merge refused (diverged history?): "
+                    f"{stderr.strip() or stdout.strip()}"
+                )
 
-        return GitResult(
-            ok=True,
-            message=stdout.strip() or "Pulled",
-            changed_files=changed,
-        )
+            _, new_head_out, _ = await self._run_git("rev-parse", "HEAD")
+            new_head = new_head_out.strip()
+
+            changed: tuple[str, ...] = ()
+            if old_head and old_head != new_head:
+                _, diff_out, _ = await self._run_git("diff", "--name-only", old_head, new_head)
+                changed = tuple(line for line in diff_out.splitlines() if line)
+
+            synced = True
+            return GitResult(
+                ok=True,
+                message=stdout.strip() or "Pulled",
+                changed_files=changed,
+            )
+        finally:
+            self._record_operation("pull", synced=synced)
 
     async def fetch(self) -> GitResult:
         """Run `git fetch origin` and report success/failure as GitResult."""
-        await self._require_initialized()
-        await self._run_git("fetch", "origin", "--quiet")
-        return GitResult(ok=True, message="Fetched")
+        synced = False
+        try:
+            await self._require_initialized()
+            await self._run_git("fetch", "origin", "--quiet")
+            synced = True
+            return GitResult(ok=True, message="Fetched")
+        finally:
+            self._record_operation("fetch", synced=synced)
 
     async def commit(self, message: str | None = None) -> GitResult:
         """Stage YAML files and create a commit without pushing."""
-        await self._require_initialized()
-        files = await self._stage_yaml_files()
-        if not files:
-            return GitResult(ok=True, message="Nothing to commit")
+        try:
+            await self._require_initialized()
+            files = await self._stage_yaml_files()
+            if not files:
+                return GitResult(ok=True, message="Nothing to commit")
 
-        msg = message or self._build_commit_message(files)
-        await self._run_git(*self._author_args(), "commit", "-m", msg)
-        return GitResult(
-            ok=True,
-            message="Committed",
-            changed_files=tuple(f.name for f in files),
-        )
+            msg = message or self._build_commit_message(files)
+            await self._run_git(*self._author_args(), "commit", "-m", msg)
+            return GitResult(
+                ok=True,
+                message="Committed",
+                changed_files=tuple(f.name for f in files),
+            )
+        finally:
+            self._record_operation("commit", synced=False)
 
     async def get_status(self) -> SyncStatus:
         """Return current sync status per `docs/architecture.md` §8.2.
@@ -333,11 +403,76 @@ class GitManager:
             return SyncStatus.BEHIND
         return SyncStatus.DIVERGED
 
+    def _parse_commit_log_format(self, out: str) -> CommitInfo | None:
+        parts = out.strip().split("\x00")
+        if len(parts) != 5:
+            return None
+        full_h, short_h, subject, author, ts = parts
+        return CommitInfo(
+            short_hash=short_h,
+            full_hash=full_h,
+            message=subject,
+            author=author,
+            timestamp=ts,
+        )
+
     async def get_local_commit(self) -> CommitInfo | None:
-        return None
+        if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
+            return None
+        rc, _, _ = await self._run_git("rev-parse", "--verify", "HEAD", check=False)
+        if rc != 0:
+            return None
+        rc2, out, _ = await self._run_git(
+            "log",
+            "-1",
+            "--pretty=format:%H%x00%h%x00%s%x00%an%x00%aI",
+            "HEAD",
+            check=False,
+        )
+        if rc2 != 0 or not out.strip():
+            return None
+        return self._parse_commit_log_format(out)
 
     async def get_remote_commit(self) -> CommitInfo | None:
-        return None
+        if not await asyncio.to_thread((self._config_dir / ".git").is_dir):
+            return None
+        rc, _, _ = await self._run_git(
+            "rev-parse", "--verify", f"origin/{self._branch}", check=False
+        )
+        if rc != 0:
+            return None
+        rc2, out, _ = await self._run_git(
+            "log",
+            "-1",
+            "--pretty=format:%H%x00%h%x00%s%x00%an%x00%aI",
+            f"origin/{self._branch}",
+            check=False,
+        )
+        if rc2 != 0 or not out.strip():
+            return None
+        return self._parse_commit_log_format(out)
+
+    async def async_get_inspection_snapshot(self) -> InspectionSnapshot:
+        """One status fetch + commit tips + changed files for sensor polling.
+
+        Cached until the next mutating git operation clears it so multiple
+        sensor entities do not multiply subprocess traffic in the same tick.
+        """
+        async with self._inspection_lock:
+            if self._inspection_snapshot is not None:
+                return self._inspection_snapshot
+            status = await self.get_status()
+            local = await self.get_local_commit()
+            remote = await self.get_remote_commit()
+            changed = await self.get_changed_files()
+            snap = InspectionSnapshot(
+                status=status,
+                local=local,
+                remote=remote,
+                changed=tuple(changed),
+            )
+            self._inspection_snapshot = snap
+            return snap
 
     async def get_changed_files(self) -> list[FileChange]:
         """Return staged + unstaged tracked YAML changes (root-level)."""

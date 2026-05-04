@@ -57,8 +57,9 @@ class GitManager:
 
 - `device_class` не задаётся (произвольный enum).
 - `state` — значение `SyncStatus` (строка).
-- Атрибуты: `last_operation`, `last_operation_time` (ISO), `last_error` (str | None), `local_commit` (short hash), `remote_commit` (short hash).
-- `unique_id`: `f"{DOMAIN}_status"`.
+- Атрибуты: `last_operation` / `last_operation_time` / `last_sync` (ISO), `last_error`, short `local_commit` / `remote_commit`, `changed_files_count` / `changed_files` (см. `docs/architecture.md` §7.3).
+- Доп. сущности (тот же device): `local_commit`, `remote_commit`, `changed_files` (число + `files`), `last_sync` (TIMESTAMP) — `sensor.py`, общий poll через `GitManager.async_get_inspection_snapshot()`.
+- `unique_id`: `{entry_id}_sync_status` и `{entry_id}_local_commit` / … (см. `sensor.py`).
 
 ### Button `ha_gitops_pull`, `ha_gitops_fetch`, `ha_gitops_push`
 

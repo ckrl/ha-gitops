@@ -16,7 +16,7 @@ ha-gitops/
 │       ├── manifest.json        # HACS manifest (domain, version, codeowners, iot_class)
 │       ├── const.py             # DOMAIN, CONF_*, дефолты, ключи статусов
 │       ├── git_manager.py       # ВСЯ git-логика; класс GitManager — единственная точка вызовов git
-│       ├── sensor.py            # SensorEntity: ha_gitops_status (+ extra в Release)
+│       ├── sensor.py            # SensorEntity: sync status + local/remote/changed/last_sync
 │       ├── button.py            # ButtonEntity: pull, fetch, push
 │       ├── repairs.py           # RepairsFlow (issue_registry fix)
 │       ├── config_flow.py       # UI Config Flow (MVP)
@@ -30,6 +30,7 @@ ha-gitops/
 │   ├── conftest.py              # фикстуры HA + временный git repo
 │   ├── test_git_manager.py      # unit + integration тесты GitManager
 │   ├── test_sensor.py
+│   ├── test_inspection_snapshot.py
 │   ├── test_button.py
 │   ├── test_config_flow.py
 │   ├── test_service.py

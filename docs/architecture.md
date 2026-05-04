@@ -442,12 +442,17 @@ with a sanitized message for automations/UI.
 | `error`    | Last operation failed                             |
 | `unknown`  | Repository not initialized or remote unreachable  |
 
-Attributes: `last_operation`, `last_operation_time` (ISO),
-`last_error`, `local_commit` (short hash), `remote_commit`.
+Attributes: `last_operation` (`push` / `pull` / `fetch` / `commit`),
+`last_operation_time` (ISO), `last_sync` (ISO of last successful remote sync),
+`last_error`, `local_commit` / `remote_commit` (short hashes),
+`changed_files_count`, `changed_files` (root-level YAML names with local edits).
 
-Release adds `sensor.ha_gitops_local_commit`,
-`sensor.ha_gitops_remote_commit`, `sensor.ha_gitops_changed_files`,
-`sensor.ha_gitops_last_sync`.
+Additional diagnostic entities (same device, same poll interval) from **v0.1.6**:
+`sensor.ha_gitops_local_commit`, `sensor.ha_gitops_remote_commit`,
+`sensor.ha_gitops_changed_files` (count + `files` attribute),
+`sensor.ha_gitops_last_sync` (`SensorDeviceClass.TIMESTAMP`, UTC).
+Sensors share one `GitManager.async_get_inspection_snapshot()` per tick so
+`get_status()` does not multiply `git fetch` traffic.
 
 ---
 
@@ -477,6 +482,15 @@ class GitManager:
     async def get_local_commit(self) -> CommitInfo | None: ...
     async def get_remote_commit(self) -> CommitInfo | None: ...
     async def get_changed_files(self) -> list[FileChange]: ...
+    async def async_get_inspection_snapshot(self) -> InspectionSnapshot: ...
+
+    # Read-only telemetry (updated when operations finish)
+    @property
+    def last_operation(self) -> str | None: ...
+    @property
+    def last_operation_at(self) -> datetime | None: ...
+    @property
+    def last_sync_at(self) -> datetime | None: ...
 
     # SSH (Release)
     async def generate_ssh_key(self) -> str: ...
@@ -626,12 +640,10 @@ small until the frontend cache refreshes.
 
 The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
 entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from v0.1.1 onward; **`button.ha_gitops_fetch`**
-(§7.1) from v0.1.3 onward; **post-pull Repairs + My link** (§7.1 Pull / `repairs.py`) from v0.1.5 onward.
+(§7.1) from v0.1.3 onward; **post-pull Repairs + My link** (§7.1 Pull / `repairs.py`) from v0.1.5 onward; **extra diagnostic sensors + snapshot polling + commit metadata** (§7.3) from v0.1.6 onward.
 The first stable release continues with the following, **in this priority order** (highest first):
 
-1. Additional sensors: `local_commit`, `remote_commit`, `changed_files`,
-   `last_sync`.
-2. SSH key generation in the flow, explicit “Test connection”, and extending the
+1. SSH key generation in the flow, explicit “Test connection”, and extending the
    options flow (e.g. **automatic** `reload_core_config` / restart after pull as **opt-in** only).
-3. Backend migration from subprocess to GitPython behind the same API.
-4. Localization: en + ru.
+2. Backend migration from subprocess to GitPython behind the same API.
+3. Localization: en + ru.

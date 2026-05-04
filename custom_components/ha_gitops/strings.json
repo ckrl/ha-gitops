@@ -72,6 +72,18 @@
     "sensor": {
       "sync_status": {
         "name": "Sync status"
+      },
+      "local_commit": {
+        "name": "Local commit"
+      },
+      "remote_commit": {
+        "name": "Remote commit"
+      },
+      "changed_files": {
+        "name": "Changed YAML files"
+      },
+      "last_sync": {
+        "name": "Last remote sync"
       }
     },
     "button": {

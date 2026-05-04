@@ -18,17 +18,33 @@ from custom_components.ha_gitops.const import (
     CONF_REPO_URL,
     CONF_SCAN_INTERVAL,
     CONF_SSH_KEY_PATH,
-    DATA_MANAGER,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     SERVICE_COMMIT,
+    SyncStatus,
 )
-from custom_components.ha_gitops.git_manager import GitError, GitResult
+from custom_components.ha_gitops.git_manager import GitError, GitResult, InspectionSnapshot
 
 
 @pytest.fixture(autouse=True)
 def _enable_custom_integrations(enable_custom_integrations: Any) -> None:
     return None
+
+
+def _stub_sensor_manager(fake: MagicMock) -> MagicMock:
+    """GitManager mock must satisfy sensor platform polling during setup."""
+    fake.last_operation = None
+    fake.last_operation_at = None
+    fake.last_sync_at = None
+    fake.async_get_inspection_snapshot = AsyncMock(
+        return_value=InspectionSnapshot(
+            status=SyncStatus.UNKNOWN,
+            local=None,
+            remote=None,
+            changed=(),
+        )
+    )
+    return fake
 
 
 def _entry_data() -> dict[str, Any]:
@@ -56,6 +72,7 @@ async def test_commit_service_registers_and_calls_manager(hass: HomeAssistant) -
     fake.commit = AsyncMock(
         return_value=GitResult(ok=True, message="Committed", changed_files=("a.yaml",)),
     )
+    _stub_sensor_manager(fake)
     with patch("custom_components.ha_gitops.GitManager", return_value=fake):
         assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -85,6 +102,7 @@ async def test_commit_service_omits_message_when_blank(hass: HomeAssistant) -> N
     fake.commit = AsyncMock(
         return_value=GitResult(ok=True, message="Nothing to commit", changed_files=()),
     )
+    _stub_sensor_manager(fake)
     with patch("custom_components.ha_gitops.GitManager", return_value=fake):
         assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -107,6 +125,7 @@ async def test_commit_service_raises_homeassistant_error_on_git_error(
     fake = MagicMock(name="GitManager")
     fake.initialize = AsyncMock(return_value=None)
     fake.commit = AsyncMock(side_effect=GitError("staging failed"))
+    _stub_sensor_manager(fake)
     with patch("custom_components.ha_gitops.GitManager", return_value=fake):
         assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -132,6 +151,7 @@ async def test_commit_service_removed_on_unload(hass: HomeAssistant) -> None:
     fake = MagicMock(name="GitManager")
     fake.initialize = AsyncMock(return_value=None)
     fake.commit = AsyncMock(return_value=GitResult(ok=True, message="ok", changed_files=()))
+    _stub_sensor_manager(fake)
     with patch("custom_components.ha_gitops.GitManager", return_value=fake):
         assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()

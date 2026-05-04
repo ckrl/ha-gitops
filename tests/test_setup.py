@@ -31,7 +31,7 @@ from custom_components.ha_gitops.const import (
     DOMAIN,
     SyncStatus,
 )
-from custom_components.ha_gitops.git_manager import GitError
+from custom_components.ha_gitops.git_manager import GitError, InspectionSnapshot
 
 
 @pytest.fixture(autouse=True)
@@ -60,6 +60,17 @@ def _fake_manager() -> MagicMock:
     manager.initialize = AsyncMock(return_value=None)
     manager.get_status = AsyncMock(return_value=SyncStatus.UNKNOWN)
     manager.fetch = AsyncMock(return_value=None)
+    manager.last_operation = None
+    manager.last_operation_at = None
+    manager.last_sync_at = None
+    manager.async_get_inspection_snapshot = AsyncMock(
+        return_value=InspectionSnapshot(
+            status=SyncStatus.UNKNOWN,
+            local=None,
+            remote=None,
+            changed=(),
+        )
+    )
     return manager
 
 
@@ -92,7 +103,7 @@ async def test_setup_entry_initializes_manager_and_creates_entities(
 
     sensor_states = [s for s in hass.states.async_all() if s.entity_id.startswith("sensor.")]
     button_states = [s for s in hass.states.async_all() if s.entity_id.startswith("button.")]
-    assert len(sensor_states) == 1, f"expected one ha_gitops sensor, got: {sensor_states}"
+    assert len(sensor_states) == 5, f"expected five ha_gitops sensors, got: {sensor_states}"
     assert len(button_states) == 3, f"expected pull+fetch+push buttons, got: {button_states}"
 
 
