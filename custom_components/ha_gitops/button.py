@@ -15,6 +15,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    DATA_AUTO_RELOAD_AFTER_PULL,
     DATA_MANAGER,
     DOCUMENTATION_URL,
     DOMAIN,
@@ -138,6 +139,20 @@ class HaGitopsPullButton(_BaseGitopsButton):
             return
 
         if result.changed_files:
+            runtime = self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
+            if runtime.get(DATA_AUTO_RELOAD_AFTER_PULL):
+                await self._hass.services.async_call(
+                    "homeassistant",
+                    "reload_core_config",
+                    {},
+                    blocking=True,
+                )
+                await self._notify(
+                    "HA GitOps: config updated",
+                    "Core configuration was reloaded automatically after pull with YAML changes.",
+                )
+                return
+
             await _notify_pull_with_changes(
                 self._hass,
                 notification_id=self.unique_id,

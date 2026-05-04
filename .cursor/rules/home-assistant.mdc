@@ -63,7 +63,7 @@ class GitManager:
 
 ### Button `ha_gitops_pull`, `ha_gitops_fetch`, `ha_gitops_push`
 
-- `async_press` — вызывает соответствующий метод `GitManager`, ловит `GitError`, шлёт `persistent_notification.create` при ошибке; при успешном **pull** с изменёнными файлами — уведомление с My Home Assistant-ссылкой на `reload_core_config` + запись **Repairs** (`repairs.py`, см. `button.py`).
+- `async_press` — вызывает соответствующий метод `GitManager`, ловит `GitError`, шлёт `persistent_notification.create` при ошибке; при успешном **pull** с изменёнными файлами — либо **opt-in** `reload_core_config` (см. `CONF_AUTO_RELOAD_AFTER_PULL` в `entry.data` / options), либо уведомление с My Home Assistant + **Repairs** (`repairs.py`, `button.py`).
 - `unique_id`: `f"{entry_id}_pull|fetch|push"`.
 
 ### Общее для entities

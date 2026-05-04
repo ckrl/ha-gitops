@@ -272,18 +272,24 @@ During the final step the flow runs `GitManager.initialize()` against the live
 `/config` tree. Failures surface as form errors; successful completion creates
 the config entry and loads `sensor` + `button` platforms.
 
-`scan_interval` is stored on the config entry (default **300** seconds).
+`scan_interval` and `auto_reload_after_pull` (boolean, default **false**) are
+stored on the config entry (`scan_interval` default **300** seconds).
 
 **Reconfiguration:** Settings → **HA GitOps** → **Configure** opens the
-**Options flow** (`async_get_options_flow`): the same fields as the initial
-form plus `scan_interval`. Submit runs `GitManager.initialize()` again,
-persists updates to `entry.data`, and `async_reload`s the config entry so
-`GitManager` and entity scan intervals pick up new values.
+**Options flow** (`async_get_options_flow`): a **menu** first — **Edit Git
+connection and polling** (same fields as initial setup plus `scan_interval` and
+**Automatically reload core configuration after a pull that changes YAML**),
+**Generate ED25519 SSH key** (runs `GitManager.generate_ssh_key()`, then a
+persistent notification with the **public** key when that integration is
+loaded, and `async_reload`), or **Test remote connection** (`git ls-remote
+origin` via `GitManager.test_connection()`). Saving connection settings runs
+`GitManager.initialize()` again, persists `entry.data`, and reloads the entry.
 
 Entities share one **device registry** entry (`DeviceEntryType.SERVICE`) so
 Pull, Fetch, Push, and Sync status appear together on the integration device page.
 
-**Release** adds an SSH key generator, explicit “Test connection”, and HTTPS auth.
+**Release** adds HTTPS auth in the flow; SSH key generation and test connection
+ship from **v0.1.7** onward.
 
 ### 6.1 Greenfield vs brownfield
 
@@ -374,10 +380,12 @@ possible conflict resolution in YAML.
   **`issue_registry`** entry (`pulled_config_reload`, fixable) appears under
   **Settings → System → Repairs** — the fix flow runs **`homeassistant.reload_core_config`**
   on confirm (still no silent auto-restart).
-- **Reload policy**: **MVP** — no automatic full **restart** of Home Assistant;
-  reload of **core configuration** is offered only via the link and the optional
-  Repairs fix (user-initiated). **Release** — optional opt-in to **automatic**
-  reload/restart after pull in options; default remains manual.
+- **Reload policy**: no automatic full **restart** of Home Assistant. Reload of
+  **core configuration** after a pull with changed files is either **manual**
+  (My Home Assistant link + optional Repairs fix) or **opt-in automatic**
+  (`auto_reload_after_pull` in the options flow, **v0.1.7+**); when opt-in is
+  enabled, Pull runs `homeassistant.reload_core_config` (blocking) and skips the
+  Repairs issue for that pull. Default remains manual.
 - **Conflict / diverged**: status `error`/`diverged`, notification with
   details, **no merge applied**.
 - **No changes**: status `clean`, silent success.
@@ -492,9 +500,9 @@ class GitManager:
     @property
     def last_sync_at(self) -> datetime | None: ...
 
-    # SSH (Release)
-    async def generate_ssh_key(self) -> str: ...
-    async def test_connection(self) -> bool: ...
+    # SSH (MVP: keygen + connectivity check; HTTPS in Release)
+    async def generate_ssh_key(self) -> str: ...  # returns public key material
+    async def test_connection(self) -> bool: ...  # git ls-remote origin
 ```
 
 Internal helpers (`_run_git`, `_build_ssh_env`, `_get_yaml_files`,
@@ -640,10 +648,8 @@ small until the frontend cache refreshes.
 
 The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
 entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from v0.1.1 onward; **`button.ha_gitops_fetch`**
-(§7.1) from v0.1.3 onward; **post-pull Repairs + My link** (§7.1 Pull / `repairs.py`) from v0.1.5 onward; **extra diagnostic sensors + snapshot polling + commit metadata** (§7.3) from v0.1.6 onward.
+(§7.1) from v0.1.3 onward; **post-pull Repairs + My link** (§7.1 Pull / `repairs.py`) from v0.1.5 onward; **extra diagnostic sensors + snapshot polling + commit metadata** (§7.3) from v0.1.6 onward; **options menu (SSH keygen, test connection, auto-reload after pull)** (§6.0 / §7.1) from v0.1.7 onward.
 The first stable release continues with the following, **in this priority order** (highest first):
 
-1. SSH key generation in the flow, explicit “Test connection”, and extending the
-   options flow (e.g. **automatic** `reload_core_config` / restart after pull as **opt-in** only).
-2. Backend migration from subprocess to GitPython behind the same API.
-3. Localization: en + ru.
+1. Backend migration from subprocess to GitPython behind the same API.
+2. Localization: en + ru.

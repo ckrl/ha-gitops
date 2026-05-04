@@ -18,7 +18,11 @@ from custom_components.ha_gitops.button import (
     HaGitopsPullButton,
     HaGitopsPushButton,
 )
-from custom_components.ha_gitops.const import ISSUE_PULLED_CONFIG_RELOAD
+from custom_components.ha_gitops.const import (
+    DATA_AUTO_RELOAD_AFTER_PULL,
+    DOMAIN,
+    ISSUE_PULLED_CONFIG_RELOAD,
+)
 from custom_components.ha_gitops.git_manager import GitError, GitResult
 
 
@@ -31,6 +35,7 @@ def _mock_config_entry(entry_id: str = "test_entry_id") -> MagicMock:
 
 def _make_hass() -> MagicMock:
     hass = MagicMock()
+    hass.data = {}
     hass.services = MagicMock()
     hass.services.async_call = AsyncMock()
     return hass
@@ -82,6 +87,27 @@ async def test_pull_button_silent_when_no_changes() -> None:
     )
     await HaGitopsPullButton(hass, entry, manager).async_press()
     hass.services.async_call.assert_not_called()
+
+
+async def test_pull_button_auto_reload_skips_repairs() -> None:
+    hass = _make_hass()
+    entry = _mock_config_entry("e_auto")
+    hass.data = {DOMAIN: {entry.entry_id: {DATA_AUTO_RELOAD_AFTER_PULL: True}}}
+    manager = MagicMock()
+    manager.pull = AsyncMock(
+        return_value=GitResult(
+            ok=True,
+            message="ff",
+            changed_files=("automations.yaml",),
+        )
+    )
+    with patch("custom_components.ha_gitops.button.ir.async_create_issue") as mock_issue:
+        await HaGitopsPullButton(hass, entry, manager).async_press()
+    mock_issue.assert_not_called()
+    assert hass.services.async_call.await_count >= 2
+    first = hass.services.async_call.await_args_list[0]
+    assert first.args[0] == "homeassistant"
+    assert first.args[1] == "reload_core_config"
 
 
 async def test_pull_button_notifies_on_changed_files() -> None:

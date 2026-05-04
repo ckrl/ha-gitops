@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import shlex
+import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -499,11 +500,81 @@ class GitManager:
             result.append(FileChange(status=mapped, name=name))
         return result
 
+    def _public_key_path(self) -> Path:
+        """Path to the OpenSSH ``.pub`` file alongside the private key."""
+        p = self._ssh_key_path
+        return p.parent / f"{p.name}.pub"
+
     async def generate_ssh_key(self) -> str:
-        raise NotImplementedError
+        """Create an ED25519 key pair at ``ssh_key_path``; return public key material.
+
+        Runs ``ssh-keygen`` in an executor context. Refuses if the private key
+        file already exists and is non-empty (``docs/architecture.md`` §4.3).
+        Sets mode **0600** on the private key. Never reads or logs the private key.
+        """
+        keygen = shutil.which("ssh-keygen")
+        if not keygen:
+            raise GitError("ssh-keygen not found on PATH")
+
+        priv = self._ssh_key_path
+        pub = self._public_key_path()
+        await asyncio.to_thread(priv.parent.mkdir, parents=True, exist_ok=True)
+
+        def _priv_exists_nonempty() -> bool:
+            return priv.is_file() and priv.stat().st_size > 0
+
+        if await asyncio.to_thread(_priv_exists_nonempty):
+            raise GitError("SSH private key already exists at the selected path")
+
+        for path in (priv, pub):
+
+            def _unlink(p: Path = path) -> None:
+                if p.is_file():
+                    p.unlink(missing_ok=True)
+
+            await asyncio.to_thread(_unlink)
+
+        proc = await asyncio.create_subprocess_exec(
+            keygen,
+            "-t",
+            "ed25519",
+            "-N",
+            "",
+            "-f",
+            str(priv),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _stdout_b, stderr_b = await proc.communicate()
+        stderr = stderr_b.decode("utf-8", errors="replace")
+        if proc.returncode != 0:
+            for path in (priv, pub):
+
+                def _unlink_fail(p: Path = path) -> None:
+                    if p.is_file():
+                        p.unlink(missing_ok=True)
+
+                await asyncio.to_thread(_unlink_fail)
+            raise GitError(f"ssh-keygen failed: {stderr.strip() or 'unknown error'}")
+
+        await asyncio.to_thread(os.chmod, str(priv), 0o600)
+
+        def _read_pub() -> str:
+            return pub.read_text(encoding="utf-8").strip()
+
+        try:
+            return await asyncio.to_thread(_read_pub)
+        except OSError as exc:
+            raise GitError(f"Could not read generated public key: {exc}") from exc
 
     async def test_connection(self) -> bool:
-        raise NotImplementedError
+        """Return ``True`` if ``git ls-remote origin`` succeeds with managed SSH env."""
+        try:
+            await self._require_initialized()
+            await self._run_git("ls-remote", "--exit-code", "origin")
+        except GitError:
+            return False
+        return True
 
     def _git_process_env(self) -> dict[str, str]:
         """Build env for every git subprocess.

@@ -31,6 +31,7 @@ ha-gitops/
 │   ├── test_git_manager.py      # unit + integration тесты GitManager
 │   ├── test_sensor.py
 │   ├── test_inspection_snapshot.py
+│   ├── test_ssh_keygen.py
 │   ├── test_button.py
 │   ├── test_config_flow.py
 │   ├── test_service.py

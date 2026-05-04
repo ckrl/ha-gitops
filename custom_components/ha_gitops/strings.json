@@ -26,20 +26,43 @@
     "step": {
       "init": {
         "title": "HA GitOps",
-        "description": "Change the Git remote, branch, commit author, SSH key path, or how often the sync status sensor is polled. Settings are checked with GitManager.initialize() before saving; the integration reloads afterward.",
+        "description": "Choose an action.",
+        "data": {
+          "menu_action": "What do you want to do?"
+        }
+      },
+      "settings": {
+        "title": "Git connection and polling",
+        "description": "Submit runs GitManager.initialize() against /config, saves settings, and reloads the integration.",
         "data": {
           "repo_url": "Git remote URL (SSH, e.g. git@github.com:owner/repo.git)",
           "branch": "Branch name",
           "git_author_name": "Git commit author name",
           "git_author_email": "Git commit author email",
           "ssh_key_path": "Private SSH key: leave empty for .ha_gitops/id_ed25519 under the config dir, or enter an absolute path, or a path relative to the config directory (e.g. .ha_gitops/id_ed25519)",
-          "scan_interval": "Status sensor poll interval (seconds, 30–86400)"
+          "scan_interval": "Status sensor poll interval (seconds, 30–86400)",
+          "auto_reload_after_pull": "Automatically reload core configuration after a pull that changes YAML (skips Repairs / manual reload link for that pull)"
         }
+      },
+      "generate_key": {
+        "title": "Generate ED25519 SSH key",
+        "description": "Creates a new key pair at the path below. Fails if a non-empty private key already exists. After success you get a persistent notification with the public key and the integration reloads.",
+        "data": {
+          "ssh_key_path": "Private key path (same rules as setup; empty = default under .ha_gitops/)"
+        }
+      },
+      "test_connection": {
+        "title": "Test remote connection",
+        "description": "{result_text}"
       }
     },
     "error": {
       "git_error": "Could not initialize the Git repository. Check the URL, branch, SSH key path, and Home Assistant logs.",
-      "unknown": "Unexpected error. Check the logs."
+      "unknown": "Unexpected error. Check the logs.",
+      "ssh_keygen_failed": "Could not generate the SSH key. See Home Assistant logs."
+    },
+    "abort": {
+      "ssh_key_generated": "SSH key created. Open notifications to copy the public key. The integration was reloaded."
     }
   },
   "services": {

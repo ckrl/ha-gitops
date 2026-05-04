@@ -23,6 +23,7 @@ CONF_SSH_KEY_PATH: Final = "ssh_key_path"
 CONF_GIT_AUTHOR_NAME: Final = "git_author_name"
 CONF_GIT_AUTHOR_EMAIL: Final = "git_author_email"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
+CONF_AUTO_RELOAD_AFTER_PULL: Final = "auto_reload_after_pull"
 
 DEFAULT_BRANCH: Final = "main"
 DEFAULT_SSH_DIR: Final = ".ha_gitops"
@@ -34,6 +35,7 @@ DEFAULT_SCAN_INTERVAL: Final = 300  # seconds
 
 DATA_MANAGER: Final = "manager"
 DATA_SCAN_INTERVAL: Final = "scan_interval"
+DATA_AUTO_RELOAD_AFTER_PULL: Final = "auto_reload_after_pull"
 DATA_LAST_RESULT: Final = "last_result"
 
 SERVICE_COMMIT: Final = "commit"

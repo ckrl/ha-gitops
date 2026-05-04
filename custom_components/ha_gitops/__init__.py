@@ -14,12 +14,14 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     ATTR_COMMIT_MESSAGE,
+    CONF_AUTO_RELOAD_AFTER_PULL,
     CONF_BRANCH,
     CONF_GIT_AUTHOR_EMAIL,
     CONF_GIT_AUTHOR_NAME,
     CONF_REPO_URL,
     CONF_SCAN_INTERVAL,
     CONF_SSH_KEY_PATH,
+    DATA_AUTO_RELOAD_AFTER_PULL,
     DATA_MANAGER,
     DATA_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
@@ -70,6 +72,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         DATA_MANAGER: manager,
         DATA_SCAN_INTERVAL: int(data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)),
+        DATA_AUTO_RELOAD_AFTER_PULL: bool(data.get(CONF_AUTO_RELOAD_AFTER_PULL, False)),
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

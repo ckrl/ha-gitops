@@ -20,6 +20,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.ha_gitops.const import (
+    CONF_AUTO_RELOAD_AFTER_PULL,
     CONF_BRANCH,
     CONF_GIT_AUTHOR_EMAIL,
     CONF_GIT_AUTHOR_NAME,
@@ -50,6 +51,7 @@ def _entry_data(**overrides: Any) -> dict[str, Any]:
         CONF_GIT_AUTHOR_EMAIL: "test@local",
         CONF_SSH_KEY_PATH: "/config/.ha_gitops/id_ed25519",
         CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        CONF_AUTO_RELOAD_AFTER_PULL: False,
     }
     base.update(overrides)
     return base
