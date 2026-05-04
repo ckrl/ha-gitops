@@ -18,8 +18,8 @@ alwaysApply: true
 
 - **Python 3.11+** (соответствует HA 2024.1+).
 - **Home Assistant Core API** (`homeassistant.*`) — entity-модель, config flow, services.
-- **asyncio** — все I/O-операции неблокирующие; `asyncio.create_subprocess_exec` для git-вызовов в MVP.
-- **git CLI** (subprocess) — git backend для MVP. В Release — миграция на `gitpython` без слома публичного API `GitManager`.
+- **asyncio** — все I/O-операции неблокирующие; git-операции через **GitPython** в `asyncio.to_thread`; `ssh-keygen` — `asyncio.create_subprocess_exec`.
+- **GitPython** + **git** на `PATH` — бэкенд с v0.1.8 (`manifest.json`: `GitPython`), публичный API `GitManager` без изменений.
 - **pytest** + `pytest-homeassistant-custom-component` — тесты.
 - **uv** (Astral) — управление venv и зависимостями. Версия Python пинится через `.python-version`, lockfile — `uv.lock`. Команды: `uv sync --extra dev`, `uv run pytest`, `uv add --dev <pkg>`. НЕ использовать `pip install` напрямую и не вводить параллельный `Pipfile`/`poetry.lock`.
 - **HACS** — дистрибуция (manifest.json + hacs.json).

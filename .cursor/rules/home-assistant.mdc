@@ -19,7 +19,7 @@ alwaysApply: false
 ## Async-контракт
 
 - Все методы `GitManager` и все `async_*` коллбэки HA — **async**.
-- Любая блокирующая операция (subprocess, file I/O, ssh-keygen) — через `asyncio.create_subprocess_exec` либо `hass.async_add_executor_job`.
+- Любая блокирующая операция — не в event loop: git через **GitPython** внутри `asyncio.to_thread` (см. `docs/architecture.md` §4.2); **ssh-keygen** и прочий subprocess — `asyncio.create_subprocess_exec`; тяжёлое file I/O — `hass.async_add_executor_job`.
 - Запрещены: `time.sleep`, `subprocess.run`, `requests`, `os.system`, чтение/запись файлов через `open()` без executor.
 - Polling сенсора: `SCAN_INTERVAL = timedelta(seconds=...)` берётся из конфига (`scan_interval`, дефолт 300). Сенсор реализует `async_update`, не `update`.
 

@@ -1,8 +1,10 @@
 """Git-backend for ha_gitops.
 
 Public API is the GitManager contract described in
-`docs/architecture.md` §8. Implementation runs the `git` CLI through
-`asyncio.create_subprocess_exec` so the HA event loop is never blocked.
+`docs/architecture.md` §8. Git operations use **GitPython**'s command runner
+(``Git.execute``) inside ``asyncio.to_thread`` so the HA event loop is never
+blocked. SSH key generation still uses ``asyncio.create_subprocess_exec`` for
+``ssh-keygen`` (see ``docs/architecture.md`` §4.3).
 """
 
 from __future__ import annotations
@@ -117,8 +119,7 @@ class GitManager:
 
     The public API is stable and tracked by `docs/architecture.md` §8.
     Internal helpers (_run_git, _build_ssh_env, _get_yaml_files,
-    _build_commit_message) may evolve freely — including a future
-    migration from subprocess to GitPython.
+    _build_commit_message) may evolve freely.
     """
 
     def __init__(
@@ -598,29 +599,42 @@ class GitManager:
         return env
 
     async def _run_git(self, *args: str, check: bool = True) -> tuple[int, str, str]:
-        """Run `git <args>` with the integration's SSH env.
+        """Run ``git <args>`` with the integration's SSH and ``safe.directory`` env.
 
-        Returns (returncode, stdout, stderr). When `check=True` (default) and
-        the command exits non-zero, raises `GitError` with a sanitized message.
+        Uses GitPython in a worker thread. Returns ``(returncode, stdout, stderr)``.
+        When ``check=True`` (default) and the command exits non-zero, raises
+        ``GitError`` with a sanitized message.
         """
+        return await asyncio.to_thread(self._sync_git_exec, args, check)
+
+    def _sync_git_exec(self, args: tuple[str, ...], check: bool) -> tuple[int, str, str]:
+        from git import Git
+        from git.compat import safe_decode
+
+        g = Git(str(self._config_dir))
         env = self._git_process_env()
-        proc = await asyncio.create_subprocess_exec(
-            "git",
-            *args,
-            cwd=str(self._config_dir),
-            env=env,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout_b, stderr_b = await proc.communicate()
-        rc = proc.returncode or 0
-        stdout = stdout_b.decode("utf-8", errors="replace")
-        stderr = stderr_b.decode("utf-8", errors="replace")
+        cmd = ["git", *args]
+        with g.custom_environment(**env):
+            rc, stdout, stderr = g.execute(
+                cmd,
+                with_extended_output=True,
+                with_exceptions=False,
+            )
+        if isinstance(stdout, bytes):
+            stdout_s = safe_decode(stdout)
+        else:
+            stdout_s = str(stdout) if stdout is not None else ""
+        if isinstance(stderr, bytes):
+            stderr_s = safe_decode(stderr)
+        else:
+            stderr_s = str(stderr) if stderr is not None else ""
         _LOGGER.debug("git %s -> rc=%s", " ".join(shlex.quote(a) for a in args), rc)
         if check and rc != 0:
-            subcmd = next((a for a in args if not a.startswith("-")), "")
-            raise GitError(f"git {subcmd} failed (exit {rc}): {stderr.strip() or stdout.strip()}")
-        return rc, stdout, stderr
+            subcmd = next((a for a in args if not str(a).startswith("-")), "")
+            raise GitError(
+                f"git {subcmd} failed (exit {rc}): {stderr_s.strip() or stdout_s.strip()}"
+            )
+        return rc, stdout_s, stderr_s
 
     async def _require_initialized(self) -> None:
         """Raise GitError if `.git/` is missing in the configured working tree."""

@@ -16,6 +16,7 @@ dev = [
   "ruff>=0.6",
   "black>=24.8",
   "mypy>=1.10",
+  "gitpython>=3.1.43,<4",
 ]
 
 # The repository is not a packaged Python project — the actual integration
@@ -55,7 +56,7 @@ warn_redundant_casts = true
 files = ["custom_components/ha_gitops"]
 
 [[tool.mypy.overrides]]
-module = ["homeassistant.*", "voluptuous.*"]
+module = ["homeassistant.*", "voluptuous.*", "git.*", "gitdb.*", "smmap.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

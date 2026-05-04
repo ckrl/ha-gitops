@@ -55,14 +55,15 @@ Consequences:
 
 ### 4.2 Git backend
 
-| Option                   | MVP / Release                                          |
-| ------------------------ | ------------------------------------------------------ |
-| `subprocess` + `git` CLI | **MVP** — full control, no Python dependency           |
-| `gitpython`              | **Release** — same `GitManager` API, friendlier errors |
-| `dulwich` / `pygit2`     | rejected — SSH/install complexity in the HA runtimes   |
+| Option                   | MVP / Release                                                          |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `subprocess` + `git` CLI | superseded — earlier MVP builds only                                   |
+| `gitpython`              | **from v0.1.8** — same `GitManager` API; `git` binary still required   |
+| `dulwich` / `pygit2`     | rejected — SSH/install complexity in the HA runtimes                   |
 
-The migration from subprocess to GitPython does not change the public
-`GitManager` API (see §8.1).
+GitPython runs the same `git` CLI (with the same `GIT_SSH_COMMAND` /
+`GIT_CONFIG_*` env) from worker threads so the HA event loop stays
+non-blocking. The public `GitManager` API is unchanged (see §8.1).
 
 **Git 2.35+ “dubious ownership”.** When `/config/.git` is not owned by the
 same UID as the Home Assistant process (bind mounts, root-owned trees,
@@ -193,7 +194,7 @@ ha-gitops/
 │       ├── brand/               # integration images (HA 2026.3+ local brands API)
 │       │   └── icon.png         # square icon (HACS / Settings → Integrations)
 │       │                        # pre-release: rescale/replace for larger/crisper asset (see §12)
-│       └── translations/        # localized strings
+│       └── translations/        # localized strings (e.g. ru.json)
 ├── tests/
 │   ├── conftest.py
 │   ├── test_initialize.py
@@ -221,7 +222,7 @@ Required fields:
   "version": "X.Y.Z",
   "documentation": "https://github.com/<owner>/ha-gitops",
   "issue_tracker": "https://github.com/<owner>/ha-gitops/issues",
-  "requirements": [],
+  "requirements": ["GitPython>=3.1.43,<4"],
   "dependencies": [],
   "codeowners": ["@<owner>"],
   "iot_class": "cloud_polling",
@@ -233,10 +234,9 @@ Required fields:
 **remote** over the network (SSH), so Home Assistant treats the integration as
 **needing internet / outbound connectivity** (not a purely local-LAN device).
 
-`requirements` is empty in the MVP — the integration depends on the
-`git` binary, which is not a Python dependency. `config_flow` is **true** so
-onboarding runs through the UI (see §6). Release adds `"GitPython>=3.1"` behind
-the same `GitManager` API.
+`requirements` lists **GitPython** (see `manifest.json` for the exact pin).
+The host **git** binary is still required — GitPython invokes it. `config_flow`
+is **true** so onboarding runs through the UI (see §6).
 
 ### 5.3 hacs.json
 
@@ -648,8 +648,8 @@ small until the frontend cache refreshes.
 
 The MVP ships with a **UI Config Flow** (§6.0), the `sensor` / `button`
 entities, and the git operations above. **`ha_gitops.commit`** (§7.2) ships from v0.1.1 onward; **`button.ha_gitops_fetch`**
-(§7.1) from v0.1.3 onward; **post-pull Repairs + My link** (§7.1 Pull / `repairs.py`) from v0.1.5 onward; **extra diagnostic sensors + snapshot polling + commit metadata** (§7.3) from v0.1.6 onward; **options menu (SSH keygen, test connection, auto-reload after pull)** (§6.0 / §7.1) from v0.1.7 onward.
-The first stable release continues with the following, **in this priority order** (highest first):
-
-1. Backend migration from subprocess to GitPython behind the same API.
-2. Localization: en + ru.
+(§7.1) from v0.1.3 onward; **post-pull Repairs + My link** (§7.1 Pull / `repairs.py`) from v0.1.5 onward; **extra diagnostic sensors + snapshot polling + commit metadata** (§7.3) from v0.1.6 onward; **options menu (SSH keygen, test connection, auto-reload after pull)** (§6.0 / §7.1) from v0.1.7 onward; **GitPython-backed git** (§4.2) from v0.1.8 onward;
+**Russian UI strings** (`translations/ru.json`) from v0.1.8 onward.
+Further polish (examples, not a strict queue): larger **brand** asset (see
+above); optional **extra locales** beyond `translations/ru.json`; HTTPS auth
+in the flow (see §6.0 / §10).

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -42,62 +41,23 @@ async def test_run_git_failure_returns_when_check_false(
     assert stderr  # should carry git's diagnostic
 
 
-async def test_run_git_injects_safe_directory_via_git_config(git_manager: GitManager) -> None:
+def test_git_process_env_injects_safe_directory(git_manager: GitManager) -> None:
     """Git 2.35+ dubious ownership is bypassed per-invocation (see docs/architecture.md §4.2)."""
-    captured: list[dict[str, str | None]] = []
-
-    async def capture_exec(
-        cmd: str,
-        *args: str,
-        cwd: str | None = None,
-        env: dict[str, str] | None = None,
-        **kwargs: object,
-    ) -> AsyncMock:
-        captured.append({"cwd": cwd, "env": env})
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(return_value=(b"ok\n", b""))
-        proc.returncode = 0
-        return proc
-
-    with patch("asyncio.create_subprocess_exec", side_effect=capture_exec):
-        await git_manager._run_git("--version", check=False)
-
-    assert captured
-    env = captured[0]["env"]
-    assert env is not None
+    env = git_manager._git_process_env()
     n = int(env["GIT_CONFIG_COUNT"])
     assert n >= 1
     assert env[f"GIT_CONFIG_KEY_{n - 1}"] == "safe.directory"
     assert env[f"GIT_CONFIG_VALUE_{n - 1}"] == str(git_manager.config_dir.resolve())
 
 
-async def test_run_git_merges_existing_git_config_count(
+def test_git_process_env_merges_existing_git_config_count(
     git_manager: GitManager,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
     monkeypatch.setenv("GIT_CONFIG_KEY_0", "user.email")
     monkeypatch.setenv("GIT_CONFIG_VALUE_0", "parent@example.com")
-    captured: list[dict[str, str | None]] = []
-
-    async def capture_exec(
-        cmd: str,
-        *args: str,
-        cwd: str | None = None,
-        env: dict[str, str] | None = None,
-        **kwargs: object,
-    ) -> AsyncMock:
-        captured.append({"env": env})
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(return_value=(b"", b""))
-        proc.returncode = 0
-        return proc
-
-    with patch("asyncio.create_subprocess_exec", side_effect=capture_exec):
-        await git_manager._run_git("--version", check=False)
-
-    env = captured[0]["env"]
-    assert env is not None
+    env = git_manager._git_process_env()
     assert env["GIT_CONFIG_COUNT"] == "2"
     assert env["GIT_CONFIG_KEY_0"] == "user.email"
     assert env["GIT_CONFIG_KEY_1"] == "safe.directory"

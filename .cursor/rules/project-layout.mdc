@@ -24,8 +24,7 @@ ha-gitops/
 │       ├── strings.json         # UI-строки (en по умолчанию)
 │       ├── brand/               # icon.png (и при необходимости logo.png) для HA/HACS
 │       └── translations/
-│           ├── en.json
-│           └── ru.json
+│           └── ru.json            # Russian UI (en defaults in strings.json)
 ├── tests/
 │   ├── conftest.py              # фикстуры HA + временный git repo
 │   ├── test_git_manager.py      # unit + integration тесты GitManager

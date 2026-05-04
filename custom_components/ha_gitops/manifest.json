@@ -7,6 +7,6 @@
   "documentation": "https://github.com/ckrl/ha-gitops",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/ckrl/ha-gitops/issues",
-  "requirements": [],
-  "version": "0.1.7"
+  "requirements": ["GitPython>=3.1.43,<4"],
+  "version": "0.1.8"
 }
