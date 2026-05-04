@@ -64,6 +64,16 @@ Consequences:
 The migration from subprocess to GitPython does not change the public
 `GitManager` API (see §8.1).
 
+**Git 2.35+ “dubious ownership”.** When `/config/.git` is not owned by the
+same UID as the Home Assistant process (bind mounts, root-owned trees,
+some NAS layouts), `git` exits with `detected dubious ownership` unless the
+directory is marked safe. `GitManager` does **not** run
+`git config --global --add safe.directory` (that would violate the rule of
+never touching the host’s global gitconfig). Instead every subprocess sets
+`GIT_CONFIG_KEY_n=safe.directory` / `GIT_CONFIG_VALUE_n=<resolved /config>`
+(merged with any pre-existing `GIT_CONFIG_COUNT` from the environment) so
+only integration-spawned git invocations trust the configured working tree.
+
 ### 4.3 SSH authentication
 
 `/config/.ha_gitops/` holds the integration's SSH material:
@@ -481,6 +491,7 @@ global `git config` is never touched.
 | User deleted the `.gitignore` block                                  | Block recreated on the next operation, warning logged                                                          |
 | `secrets.yaml` ends up staged                                        | Panic guard: unstage, abort, error notification (see §10.1)                                                    |
 | HA host: `git init` + root commit while `origin` already has commits | Unrelated histories — push rejected (non-FF), pull needs explicit merge strategy; see §6.1 brownfield recovery |
+| Git “dubious ownership” on `/config` | Mitigated per §4.2 via `GIT_CONFIG_*` `safe.directory` on every git subprocess (no global gitconfig) |
 
 ---
 

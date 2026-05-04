@@ -343,14 +343,34 @@ class GitManager:
     async def test_connection(self) -> bool:
         raise NotImplementedError
 
+    def _git_process_env(self) -> dict[str, str]:
+        """Build env for every git subprocess.
+
+        Includes SSH settings (§4.3) and a per-invocation `safe.directory`
+        entry via `GIT_CONFIG_*` so Git 2.35+ does not abort with "dubious
+        ownership" when `/config` is bind-mounted or owned by a different UID
+        than the HA process (typical container / supervised installs). We never
+        touch the host global gitconfig — see `docs/architecture.md` §4.2.
+        """
+        env = os.environ.copy()
+        env.update(self._build_ssh_env())
+        safe_dir = str(self._config_dir.resolve())
+        try:
+            n = int(env.get("GIT_CONFIG_COUNT", "0") or "0")
+        except ValueError:
+            n = 0
+        env[f"GIT_CONFIG_KEY_{n}"] = "safe.directory"
+        env[f"GIT_CONFIG_VALUE_{n}"] = safe_dir
+        env["GIT_CONFIG_COUNT"] = str(n + 1)
+        return env
+
     async def _run_git(self, *args: str, check: bool = True) -> tuple[int, str, str]:
         """Run `git <args>` with the integration's SSH env.
 
         Returns (returncode, stdout, stderr). When `check=True` (default) and
         the command exits non-zero, raises `GitError` with a sanitized message.
         """
-        env = os.environ.copy()
-        env.update(self._build_ssh_env())
+        env = self._git_process_env()
         proc = await asyncio.create_subprocess_exec(
             "git",
             *args,
