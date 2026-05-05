@@ -4,13 +4,13 @@
     "step": {
       "user": {
         "title": "HA GitOps",
-        "description": "Link this Home Assistant configuration directory (/config) to a Git remote using SSH. A deploy key with access to the repository must already exist at the SSH path (or use the default under .ha_gitops/).",
+        "description": "Link this Home Assistant configuration directory (/config) to a Git remote using SSH.\n\nSSH key path rules:\n- Leave empty to use default: /config/.ha_gitops/id_ed25519\n- Absolute path is supported\n- Relative path is resolved from /config (example: .ha_gitops/id_ed25519)\n\nA deploy key with repository access must already exist at that path.",
         "data": {
           "repo_url": "Git remote URL (SSH, e.g. git@github.com:owner/repo.git)",
           "branch": "Branch name",
           "git_author_name": "Git commit author name",
           "git_author_email": "Git commit author email",
-          "ssh_key_path": "Private SSH key: leave empty for .ha_gitops/id_ed25519 under the config dir, or enter an absolute path, or a path relative to the config directory (e.g. .ha_gitops/id_ed25519)"
+          "ssh_key_path": "Private SSH key path"
         }
       }
     },
@@ -33,13 +33,13 @@
       },
       "settings": {
         "title": "Git connection and polling",
-        "description": "Submit runs GitManager.initialize() against /config, saves settings, and reloads the integration.",
+        "description": "Submit runs GitManager.initialize() against /config, saves settings, and reloads the integration.\n\nSSH key path rules:\n- Leave empty to use default: /config/.ha_gitops/id_ed25519\n- Absolute path is supported\n- Relative path is resolved from /config (example: .ha_gitops/id_ed25519)",
         "data": {
           "repo_url": "Git remote URL (SSH, e.g. git@github.com:owner/repo.git)",
           "branch": "Branch name",
           "git_author_name": "Git commit author name",
           "git_author_email": "Git commit author email",
-          "ssh_key_path": "Private SSH key: leave empty for .ha_gitops/id_ed25519 under the config dir, or enter an absolute path, or a path relative to the config directory (e.g. .ha_gitops/id_ed25519)",
+          "ssh_key_path": "Private SSH key path",
           "scan_interval": "Status sensor poll interval (seconds, 30–86400)",
           "auto_reload_after_pull": "Automatically reload core configuration after a pull that changes YAML (skips Repairs / manual reload link for that pull)"
         }
