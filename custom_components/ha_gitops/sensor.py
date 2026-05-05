@@ -182,7 +182,7 @@ class HaGitopsRemoteCommitSensor(_HaGitopsDiagnosticSensor):
     def __init__(self, entry: ConfigEntry, manager: GitManager, scan_interval: int) -> None:
         super().__init__(entry, manager, scan_interval)
         self._attr_unique_id = f"{entry.entry_id}_remote_commit"
-        self._attr_object_id = "ha_gitopss_commit_remote"
+        self._attr_object_id = "ha_gitops_commit_remote"
         self._attr_native_value: str | None = STATE_UNKNOWN
         self._extra = _commit_attrs(None)
 
