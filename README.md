@@ -9,7 +9,7 @@
 English | [Русский](./README_ru.md)
 
 <p align="center">
-  <img src="custom_components/ha_gitops/brand/icon.png" alt="HA GitOps icon" width="128" />
+  <img src="custom_components/ha_gitops/brand/logo.png" alt="HA GitOps logo" height="256" />
 </p>
 
 **HA GitOps** turns your Home Assistant `/config` directory into a real Git working tree

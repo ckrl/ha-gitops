@@ -21,6 +21,14 @@ _Nothing yet._
 
 ---
 
+## [1.0.1] — 2026-05-05
+
+### Added
+
+- Extend brand asset set with logo and retina versions of logo and icon
+
+---
+
 ## [1.0.0] — 2026-05-05
 
 First stable public release. The feature set described below is the complete
@@ -153,7 +161,7 @@ iterations and are not separately documented.
 - **No writes to the host's global `git config`.** `safe.directory` for
   `/config` (Git 2.35+ "dubious ownership" handling) and per-commit identity
   are passed via `GIT_CONFIG_KEY_*` / `GIT_CONFIG_VALUE_*` and `-c
-  user.name=… -c user.email=…` so only integration-spawned Git invocations are
+user.name=… -c user.email=…` so only integration-spawned Git invocations are
   affected.
 - **Pulls are fast-forward only.** Conflicts surface as `diverged`; the
   integration never auto-merges or auto-rebases without explicit user action.
@@ -174,5 +182,6 @@ These are intentional non-goals for the 1.0.0 line and are tracked in
 - Synchronization of `.storage/`, `.cloud/`, `core_*`, and other Home
   Assistant runtime state is permanently out of scope.
 
-[Unreleased]: https://github.com/ckrl/ha-gitops/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ckrl/ha-gitops/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/ckrl/ha-gitops/releases/tag/v1.0.1
 [1.0.0]: https://github.com/ckrl/ha-gitops/releases/tag/v1.0.0

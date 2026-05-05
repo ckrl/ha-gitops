@@ -9,7 +9,7 @@
 [English](./README.md) | Русский
 
 <p align="center">
-  <img src="custom_components/ha_gitops/brand/icon.png" alt="HA GitOps icon" width="128" />
+  <img src="custom_components/ha_gitops/brand/logo.png" alt="HA GitOps logo" height="256" />
 </p>
 
 **HA GitOps** превращает каталог конфигурации Home Assistant `/config` в полноценное
