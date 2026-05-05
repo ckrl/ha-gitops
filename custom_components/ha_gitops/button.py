@@ -105,7 +105,6 @@ class _BaseGitopsButton(ButtonEntity):
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
             manufacturer="HA GitOps",
-            model="/config Git sync",
             configuration_url=DOCUMENTATION_URL,
             entry_type=DeviceEntryType.SERVICE,
         )

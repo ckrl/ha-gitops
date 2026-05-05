@@ -62,6 +62,35 @@ async def test_config_flow_shows_form(hass: HomeAssistant) -> None:
     assert result["step_id"] == "user"
 
 
+def test_read_existing_repo_defaults_empty_without_git(tmp_path: Path) -> None:
+    from custom_components.ha_gitops.config_flow import _read_existing_repo_defaults
+
+    assert _read_existing_repo_defaults(tmp_path) == {}
+
+
+def test_read_existing_repo_defaults_from_local_repo(tmp_path: Path) -> None:
+    from git import Repo
+
+    from custom_components.ha_gitops.config_flow import _read_existing_repo_defaults
+
+    repo = Repo.init(tmp_path)
+    repo.create_remote("origin", "git@example.com:owner/repo.git")
+    with repo.config_writer() as cfg:
+        cfg.set_value("user", "name", "HA Bot")
+        cfg.set_value("user", "email", "ha@example.com")
+
+    key = tmp_path / ".ha_gitops" / "id_ed25519"
+    key.parent.mkdir(parents=True, exist_ok=True)
+    key.write_text("dummy-private-key", encoding="utf-8")
+
+    defaults = _read_existing_repo_defaults(tmp_path)
+    assert defaults[CONF_REPO_URL] == "git@example.com:owner/repo.git"
+    assert defaults[CONF_GIT_AUTHOR_NAME] == "HA Bot"
+    assert defaults[CONF_GIT_AUTHOR_EMAIL] == "ha@example.com"
+    assert defaults[CONF_BRANCH]
+    assert defaults[CONF_SSH_KEY_PATH] == str(key)
+
+
 async def test_config_flow_creates_entry_when_git_succeeds(hass: HomeAssistant) -> None:
     normalized = {
         **_valid_user_input(),

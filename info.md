@@ -32,6 +32,10 @@ and observe the sync state from the dashboard.
 2. Enter the **Git remote URL** (SSH), **branch**, **git author name/email**, and
    optionally a **path to the private SSH key** (leave empty to use the default
    `/config/.ha_gitops/id_ed25519`).
+3. Reinstall/re-add flow helper: if `/config` already has a `.git` repository,
+   setup form pre-fills values from local git metadata (`origin` URL, active
+   branch, `user.name`, `user.email`) and auto-suggests
+   `/config/.ha_gitops/id_ed25519` when that key file exists.
 
 See [`docs/architecture.md`](https://github.com/ckrl/ha-gitops/blob/master/docs/architecture.md)
 for the full design and operational details.

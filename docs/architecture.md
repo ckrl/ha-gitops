@@ -55,11 +55,11 @@ Consequences:
 
 ### 4.2 Git backend
 
-| Option                   | MVP / Release                                                          |
-| ------------------------ | ---------------------------------------------------------------------- |
-| `subprocess` + `git` CLI | superseded — earlier MVP builds only                                   |
-| `gitpython`              | **from v0.1.8** — same `GitManager` API; `git` binary still required   |
-| `dulwich` / `pygit2`     | rejected — SSH/install complexity in the HA runtimes                   |
+| Option                   | MVP / Release                                                        |
+| ------------------------ | -------------------------------------------------------------------- |
+| `subprocess` + `git` CLI | superseded — earlier MVP builds only                                 |
+| `gitpython`              | **from v0.1.8** — same `GitManager` API; `git` binary still required |
+| `dulwich` / `pygit2`     | rejected — SSH/install complexity in the HA runtimes                 |
 
 GitPython runs the same `git` CLI (with the same `GIT_SSH_COMMAND` /
 `GIT_CONFIG_*` env) from worker threads so the HA event loop stays

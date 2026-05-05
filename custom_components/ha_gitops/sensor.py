@@ -41,7 +41,6 @@ class _HaGitopsDiagnosticSensor(SensorEntity):
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
             manufacturer="HA GitOps",
-            model="/config Git sync",
             configuration_url=DOCUMENTATION_URL,
             entry_type=DeviceEntryType.SERVICE,
         )
@@ -152,6 +151,7 @@ class HaGitopsLocalCommitSensor(_HaGitopsDiagnosticSensor):
     def __init__(self, entry: ConfigEntry, manager: GitManager, scan_interval: int) -> None:
         super().__init__(entry, manager, scan_interval)
         self._attr_unique_id = f"{entry.entry_id}_local_commit"
+        self._attr_object_id = "ha_gitops_commit_local"
         self._attr_native_value: str | None = STATE_UNKNOWN
         self._extra: dict[str, Any] = _commit_attrs(None)
 
@@ -176,12 +176,13 @@ class HaGitopsLocalCommitSensor(_HaGitopsDiagnosticSensor):
 class HaGitopsRemoteCommitSensor(_HaGitopsDiagnosticSensor):
     """origin/<branch> tip commit (short hash + metadata)."""
 
-    _attr_icon = "mdi:source-commit-remote"
+    _attr_icon = "mdi:source-commit"
     _attr_translation_key = "remote_commit"
 
     def __init__(self, entry: ConfigEntry, manager: GitManager, scan_interval: int) -> None:
         super().__init__(entry, manager, scan_interval)
         self._attr_unique_id = f"{entry.entry_id}_remote_commit"
+        self._attr_object_id = "ha_gitopss_commit_remote"
         self._attr_native_value: str | None = STATE_UNKNOWN
         self._extra = _commit_attrs(None)
 
@@ -212,6 +213,7 @@ class HaGitopsChangedFilesSensor(_HaGitopsDiagnosticSensor):
     def __init__(self, entry: ConfigEntry, manager: GitManager, scan_interval: int) -> None:
         super().__init__(entry, manager, scan_interval)
         self._attr_unique_id = f"{entry.entry_id}_changed_files"
+        self._attr_object_id = "ha_gitops_changed_files"
         self._attr_native_value = 0
         self._files_attr: list[dict[str, str]] = []
 

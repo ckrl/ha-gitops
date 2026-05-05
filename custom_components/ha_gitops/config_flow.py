@@ -5,7 +5,9 @@ Architecture: docs/architecture.md §6 (configuration) and §12.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
@@ -71,6 +73,66 @@ STEP_GENERATE_KEY_SCHEMA = vol.Schema(
 )
 
 
+def _read_existing_repo_defaults(config_dir: Path) -> dict[str, Any]:
+    """Read setup defaults from an existing local git repo under config_dir."""
+    git_dir = config_dir / ".git"
+    if not git_dir.is_dir():
+        return {}
+
+    try:
+        from git import InvalidGitRepositoryError, Repo
+    except Exception:  # pragma: no cover - defensive import
+        return {}
+
+    try:
+        repo = Repo(config_dir)
+    except (InvalidGitRepositoryError, OSError):
+        return {}
+
+    defaults: dict[str, Any] = {}
+
+    try:
+        remote = repo.remotes.origin
+        remote_url = remote.url.strip()
+        if remote_url:
+            defaults[CONF_REPO_URL] = remote_url
+    except Exception:
+        pass
+
+    try:
+        branch = repo.active_branch.name.strip()
+        if branch and branch != "HEAD":
+            defaults[CONF_BRANCH] = branch
+    except Exception:
+        pass
+
+    try:
+        with repo.config_reader() as cfg:
+            author_name = (cfg.get_value("user", "name", "") or "").strip()
+            author_email = (cfg.get_value("user", "email", "") or "").strip()
+        if author_name:
+            defaults[CONF_GIT_AUTHOR_NAME] = author_name
+        if author_email:
+            defaults[CONF_GIT_AUTHOR_EMAIL] = author_email
+    except Exception:
+        pass
+
+    default_key = config_dir / ".ha_gitops" / "id_ed25519"
+    try:
+        if default_key.is_file() and default_key.stat().st_size > 0:
+            defaults[CONF_SSH_KEY_PATH] = str(default_key)
+    except OSError:
+        pass
+
+    return defaults
+
+
+async def _discover_existing_repo_defaults(hass: HomeAssistant) -> dict[str, Any]:
+    """Collect suggested setup values from an already initialized local repo."""
+    config_dir = Path(hass.config.path())
+    return await asyncio.to_thread(_read_existing_repo_defaults, config_dir)
+
+
 def _build_git_manager(hass: HomeAssistant, data: dict[str, Any]) -> GitManager:
     """Construct GitManager from entry-shaped dict (uses hass.config.path())."""
     return GitManager(
@@ -121,7 +183,11 @@ class HaGitopsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="already_configured")
 
         if user_input is None:
-            return self.async_show_form(step_id="user", data_schema=STEP_USER_SCHEMA)
+            suggested = await _discover_existing_repo_defaults(self.hass)
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self.add_suggested_values_to_schema(STEP_USER_SCHEMA, suggested),
+            )
 
         errors: dict[str, str] = {}
         try:

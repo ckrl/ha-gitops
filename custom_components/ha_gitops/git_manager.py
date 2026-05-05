@@ -31,6 +31,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+GIT_COMMAND_TIMEOUT_SEC = 60.0
 
 
 def normalize_ssh_key_path(config_dir: Path, raw: str | Path | None) -> Path:
@@ -619,6 +620,7 @@ class GitManager:
                 cmd,
                 with_extended_output=True,
                 with_exceptions=False,
+                kill_after_timeout=GIT_COMMAND_TIMEOUT_SEC,
             )
         if isinstance(stdout, bytes):
             stdout_s = safe_decode(stdout)
@@ -745,7 +747,9 @@ class GitManager:
             f"ssh -i {self._ssh_key_path} "
             f"-o UserKnownHostsFile={known_hosts} "
             "-o StrictHostKeyChecking=accept-new "
-            "-o IdentitiesOnly=yes"
+            "-o IdentitiesOnly=yes "
+            "-o BatchMode=yes "
+            "-o ConnectTimeout=15"
         )
         return {"GIT_SSH_COMMAND": ssh_cmd}
 
