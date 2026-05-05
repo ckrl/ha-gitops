@@ -151,11 +151,14 @@ git-рабочее дерево и позволяет выполнять `pull`,
 
 ### Вариант 1 — HACS (рекомендуется)
 
-1. Откройте **HACS → Integrations**.
-2. Меню **⋮** → **Custom repositories**.
-3. Добавьте `https://github.com/ckrl/ha-gitops`, категория **Integration**.
-4. Установите **HA GitOps**.
-5. Перезапустите Home Assistant.
+[![Открыть репозиторий в HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ckrl&repository=ha-gitops&category=integration)
+
+1. Нажмите на бейдж выше (откроется HACS в вашем Home Assistant с уже подставленным репозиторием), **либо** добавьте вручную:
+   - **HACS → Integrations → ⋮ → Custom repositories**
+   - URL: `https://github.com/ckrl/ha-gitops`
+   - Категория: **Integration**
+2. Установите **HA GitOps**.
+3. Перезапустите Home Assistant.
 
 ### Вариант 2 — Вручную
 
@@ -168,6 +171,14 @@ cp -r /tmp/ha-gitops/custom_components/ha_gitops custom_components/
 ```
 
 Затем перезапустите Home Assistant.
+
+### Добавление интеграции в Home Assistant
+
+После установки и перезапуска:
+
+[![Добавить интеграцию в ваш Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_gitops)
+
+Бейдж выше открывает **Add integration → HA GitOps** прямо в вашем инстансе. Тот же путь доступен вручную: **Settings → Devices & services → Add integration → HA GitOps**.
 
 ## Первичная настройка
 

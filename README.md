@@ -143,11 +143,14 @@ the integration manages `/config/.gitignore`, and SSH key material lives in
 
 ### Option 1 — HACS (recommended)
 
-1. Open **HACS → Integrations**.
-2. Click the **⋮** menu → **Custom repositories**.
-3. Add `https://github.com/ckrl/ha-gitops` with category **Integration**.
-4. Install **HA GitOps**.
-5. Restart Home Assistant.
+[![Open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ckrl&repository=ha-gitops&category=integration)
+
+1. Click the badge above (opens HACS in your Home Assistant with this repository pre-filled), **or** add it manually:
+   - **HACS → Integrations → ⋮ → Custom repositories**
+   - URL: `https://github.com/ckrl/ha-gitops`
+   - Category: **Integration**
+2. Install **HA GitOps**.
+3. Restart Home Assistant.
 
 ### Option 2 — Manual
 
@@ -160,6 +163,14 @@ cp -r /tmp/ha-gitops/custom_components/ha_gitops custom_components/
 ```
 
 Then restart Home Assistant.
+
+### Add the integration to Home Assistant
+
+After installation and restart:
+
+[![Add integration to your Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_gitops)
+
+The badge above opens **Add integration → HA GitOps** in your instance directly. The same flow is available manually under **Settings → Devices & services → Add integration → HA GitOps**.
 
 ## Setup walkthrough
 
