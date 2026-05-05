@@ -354,7 +354,8 @@ captures conventions for IDE-side AI assistance.
 
 For the deep dive — component diagram, `GitManager` public API, commit-message format,
 status detection algorithm, error taxonomy, and security trade-offs — see
-[`docs/architecture.md`](./docs/architecture.md).
+[`docs/architecture.md`](./docs/architecture.md). For the user-facing change history
+across releases, see [`CHANGELOG.md`](./CHANGELOG.md).
 
 Key design decisions in one paragraph: `/config` itself is the Git working tree (no
 staging copy, no shadow directory). Git operations go through GitPython, which in turn
