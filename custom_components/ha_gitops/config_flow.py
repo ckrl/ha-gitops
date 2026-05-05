@@ -15,6 +15,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_AUTO_RELOAD_AFTER_PULL,
@@ -46,8 +47,11 @@ STEP_USER_SCHEMA = vol.Schema(
 
 STEP_OPTIONS_MENU_SCHEMA = vol.Schema(
     {
-        vol.Required("menu_action"): vol.In(
-            ["settings", "generate_key", "test_connection"]
+        vol.Required("menu_action"): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=["settings", "generate_key", "test_connection"],
+                translation_key="menu_action",
+            )
         ),
     }
 )

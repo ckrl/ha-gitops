@@ -1,5 +1,14 @@
 {
   "title": "HA GitOps",
+  "selector": {
+    "menu_action": {
+      "options": {
+        "settings": "Settings",
+        "generate_key": "Generate SSH key",
+        "test_connection": "Test connection"
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {
