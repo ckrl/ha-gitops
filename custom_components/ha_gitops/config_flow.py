@@ -241,9 +241,7 @@ class HaGitopsOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             return await self.async_step_generate_key()
         return await self.async_step_test_connection()
 
-    async def async_step_settings(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Edit Git remote, author, SSH path, polling, and post-pull auto-reload."""
         if user_input is None:
             defaults = {**self.config_entry.data}
@@ -280,9 +278,7 @@ class HaGitopsOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             errors=errors,
         )
 
-    async def async_step_generate_key(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_generate_key(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Generate ED25519 key at the chosen path (default: integration SSH path)."""
         if user_input is None:
             return self.async_show_form(

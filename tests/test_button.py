@@ -182,9 +182,7 @@ async def test_fetch_button_invokes_manager_fetch() -> None:
     hass = _make_hass()
     entry = _mock_config_entry()
     manager = MagicMock()
-    manager.fetch = AsyncMock(
-        return_value=GitResult(ok=True, message="Fetched", changed_files=())
-    )
+    manager.fetch = AsyncMock(return_value=GitResult(ok=True, message="Fetched", changed_files=()))
     await HaGitopsFetchButton(hass, entry, manager).async_press()
     manager.fetch.assert_awaited_once()
     hass.services.async_call.assert_not_called()

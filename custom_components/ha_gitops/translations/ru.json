@@ -89,7 +89,6 @@
   "issues": {
     "pulled_config_reload": {
       "title": "HA GitOps: конфигурация обновлена из Git",
-      "description": "Pull объединил {count} изменённых файл(ов) в `/config`. Перезагрузите конфигурацию ядра, чтобы применить изменения YAML.\n\nИзменены: {files}",
       "fix_flow": {
         "step": {
           "confirm": {

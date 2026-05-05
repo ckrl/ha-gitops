@@ -61,9 +61,7 @@ async def test_last_operation_recorded_after_fetch(
     assert git_manager_seeded.last_sync_at is not None
 
 
-async def test_changed_files_in_snapshot(
-    git_manager_seeded: GitManager, config_dir: Path
-) -> None:
+async def test_changed_files_in_snapshot(git_manager_seeded: GitManager, config_dir: Path) -> None:
     await git_manager_seeded.initialize()
     (config_dir / "automations.yaml").write_text("- changed: true\n", encoding="utf-8")
     snap = await git_manager_seeded.async_get_inspection_snapshot()
